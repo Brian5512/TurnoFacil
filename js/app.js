@@ -1,5 +1,6 @@
 const days = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
 const mealBreakHours = 1;
+const openingMinutes = 9 * 60;
 const complete = () => Object.fromEntries(days.map((day) => [day, 'COMPLETA']));
 const seed = [
   { id: 1, name: 'Trabajador 1', rut: '', hours: 30, overnight: false, availability: complete() },
@@ -86,7 +87,7 @@ function closingDisplay(day) {
 
 function startTimeOptionsHtml(day, selected = '') {
   const limit = Math.min(closingMinutes(day), 1440);
-  return timeValues.filter((time) => parseTime(time) < limit).map((time) => `<option value="${time}" ${time === selected ? 'selected' : ''}>${time}</option>`).join('');
+  return timeValues.filter((time) => parseTime(time) >= openingMinutes && parseTime(time) < limit).map((time) => `<option value="${time}" ${time === selected ? 'selected' : ''}>${time}</option>`).join('');
 }
 
 function endMinutesForRange(start, end) {
@@ -176,12 +177,13 @@ function workWindow(employee, day) {
   const employeeClosing = employee.overnight ? closingMinutes(day) : Math.min(closingMinutes(day), 1440);
   const rawWindow = parseWindow(availability);
   if (rawWindow) {
+    const start = Math.max(rawWindow.start, openingMinutes);
     const end = Math.min(rawWindow.end, employeeClosing);
-    if (rawWindow.start >= end) return null;
-    return { start: rawWindow.start, end, capacity: (end - rawWindow.start) / 60, ranged: true };
+    if (start >= end) return null;
+    return { start, end, capacity: (end - start) / 60, ranged: true };
   }
   if (availability !== 'COMPLETA') return null;
-  const start = (day === 'Sábado' || day === 'Domingo' ? 10 : 9) * 60;
+  const start = openingMinutes;
   if (start >= employeeClosing) return null;
   return { start, end: employeeClosing, capacity: (employeeClosing - start) / 60, ranged: false };
 }
@@ -263,7 +265,13 @@ function enforceClosingLimits() {
   let changed = false;
   for (const employee of state.employees) {
     for (const day of days) {
-      const availability = availabilityParts(employee.availability[day]);
+      let availability = availabilityParts(employee.availability[day]);
+      if (availability.mode === 'range' && parseTime(availability.start) < openingMinutes) {
+        const endMinutes = endMinutesForRange(availability.start, availability.end);
+        employee.availability[day] = endMinutes <= openingMinutes ? 'X' : `${formatTime(openingMinutes)} - ${availability.end}`;
+        availability = availabilityParts(employee.availability[day]);
+        changed = true;
+      }
       if (availability.mode === 'range' && !endWithinClosing(day, availability.start, availability.end)) {
         if (parseTime(availability.start) >= Math.min(closingMinutes(day), 1440)) employee.availability[day] = 'X';
         else employee.availability[day] = `${availability.start} - ${closingTime(day)}`;
@@ -381,7 +389,7 @@ function renderTable() {
   const table = $('#schedule-table');
   const body = state.employees.length ? state.employees.map(rowHtml).join('') : '<tr><td colspan="11" class="empty-row">No hay trabajadores. Usa “Agregar trabajador” para comenzar.</td></tr>';
   const today = localDateValue(new Date());
-  table.innerHTML = `<thead><tr><th>Trabajador</th><th class="hours">${state.view === 'schedule' ? 'Asignadas' : 'Horas'}</th>${days.map((day, index) => `<th class="day ${localDateValue(dateForDay(index)) === today ? 'today' : ''}"><span>${day}</span><small>${dayDateLabel(index)} · Cierre ${closingDisplay(day)}</small></th>`).join('')}<th class="overnight">Cierre hasta 01:00</th><th class="remove"></th></tr></thead><tbody>${body}</tbody>`;
+  table.innerHTML = `<thead><tr><th>Trabajador</th><th class="hours">${state.view === 'schedule' ? 'Asignadas' : 'Horas'}</th>${days.map((day, index) => `<th class="day ${localDateValue(dateForDay(index)) === today ? 'today' : ''}"><span>${day}</span><small>${dayDateLabel(index)} · 09:00–${closingDisplay(day)}</small></th>`).join('')}<th class="overnight">Cierre hasta 01:00</th><th class="remove"></th></tr></thead><tbody>${body}</tbody>`;
   table.querySelectorAll('[data-field]').forEach((input) => input.addEventListener('change', onCellChange));
   table.querySelectorAll('[data-action="availability-start"]').forEach((select) => select.addEventListener('change', onAvailabilityStartChange));
   table.querySelectorAll('[data-action="availability-end"]').forEach((select) => select.addEventListener('change', onAvailabilityEndChange));
@@ -422,7 +430,7 @@ function rowHtml(employee, index) {
 }
 
 function renderAvailabilityForm() {
-  $('#availability-form').innerHTML = days.map((day) => `<div class="availability-row" data-form-day="${day}"><div class="day-close"><strong>${day}</strong><small>Cierre ${closingDisplay(day)}</small></div><select class="availability-mode" aria-label="Disponibilidad de ${day}"><option value="complete">Completa</option><option value="range">Rango horario</option><option value="unavailable">No disponible</option></select><div class="time-fields" hidden><label>Desde <select class="start-time" aria-label="Hora de inicio de ${day}">${startTimeOptionsHtml(day, '09:00')}</select></label><label>Hasta <select class="end-time" aria-label="Hora de término de ${day}">${endTimeOptionsHtml(day, '09:00', '18:00')}</select></label></div></div>`).join('');
+  $('#availability-form').innerHTML = days.map((day) => `<div class="availability-row" data-form-day="${day}"><div class="day-close"><strong>${day}</strong><small>09:00–${closingDisplay(day)}</small></div><select class="availability-mode" aria-label="Disponibilidad de ${day}"><option value="complete">Completa</option><option value="range">Rango horario</option><option value="unavailable">No disponible</option></select><div class="time-fields" hidden><label>Desde <select class="start-time" aria-label="Hora de inicio de ${day}">${startTimeOptionsHtml(day, '09:00')}</select></label><label>Hasta <select class="end-time" aria-label="Hora de término de ${day}">${endTimeOptionsHtml(day, '09:00', '18:00')}</select></label></div></div>`).join('');
   $$('.availability-mode').forEach((select) => select.addEventListener('change', () => {
     const row = select.closest('.availability-row');
     row.querySelector('.time-fields').hidden = select.value !== 'range';
