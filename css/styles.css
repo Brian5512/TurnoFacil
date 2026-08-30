@@ -55,7 +55,7 @@ tr:nth-child(even) td.person { background:#fafbf9; }
 .person-input.rut { height:21px; color:#7b867e; font-size:11px; font-weight:400; }
 .hours-input { width:58px; height:33px; padding:4px; text-align:center; font-weight:700; }
 .hours-editor { display:grid; justify-items:center; gap:3px; }
-.hours-editor small { color:#728078; font-size:8px; line-height:1.2; }
+.hours-editor small { max-width:92px; color:#728078; font-size:8px; line-height:1.2; }
 .cell-input { width:100%; min-width:112px; height:33px; padding:4px 6px; color:#315d46; font-size:11px; font-weight:700; text-align:center; }
 .cell-input.unavailable { border-color:#eadbd2; background:#fff4ee; color:#a04a22; }
 .availability-controls { display:grid; gap:4px; min-width:136px; }
@@ -80,6 +80,7 @@ tr:nth-child(even) td.person { background:#fafbf9; }
 .shift-times small { color:#7a867d; font-size:7px; font-weight:700; text-transform:uppercase; }
 .shift-times b { font-size:11px; }
 .shift-times i { align-self:center; color:#7e8c82; font-size:10px; font-style:normal; }
+.meal-note { padding-top:3px; border-top:1px dashed #cfdbd1; color:#6d7d72; font-size:8px; font-weight:700; }
 .shift-free { min-height:37px; display:grid; place-items:center; border-radius:8px; background:#f4f5f2; color:#919993; font-size:9px; }
 .hours-summary { display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:36px; border-radius:8px; padding:4px; }
 .hours-summary strong { font-size:14px; }
