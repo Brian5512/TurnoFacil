@@ -40,12 +40,12 @@ h1 { margin:5px 0 3px; font-size:30px; letter-spacing:-.7px; }
 table { width:100%; min-width:1340px; border-collapse:separate; border-spacing:0; font-size:12px; }
 th { position:sticky; top:0; z-index:5; height:45px; padding:8px; border-left:1px solid #ffffff26; background:var(--green); color:white; font-size:11px; letter-spacing:.06em; text-transform:uppercase; text-align:center; }
 th:first-child { left:0; z-index:8; min-width:240px; padding-left:15px; text-align:left; }
-th.hours { width:75px; }
+th.hours { width:100px; min-width:100px; }
 th.day { min-width:150px; }
 th.day span,th.day small { display:block; }
 th.day small { margin-top:3px; color:#cfe4d6; font-size:9px; letter-spacing:.04em; }
 th.day.today { background:#28734f; box-shadow:inset 0 -3px 0 #a9d8ba; }
-th.overnight { width:90px; }
+th.overnight { width:110px; min-width:110px; }
 th.remove { width:44px; }
 td { height:54px; padding:6px; border-left:1px solid #e7ebe5; border-bottom:1px solid #e7ebe5; text-align:center; background:white; }
 tr:nth-child(even) td { background:#fafbf9; }
@@ -54,6 +54,8 @@ tr:nth-child(even) td.person { background:#fafbf9; }
 .person-input { display:block; width:100%; height:25px; padding:2px 4px; border-color:transparent; background:transparent; font-weight:700; }
 .person-input.rut { height:21px; color:#7b867e; font-size:11px; font-weight:400; }
 .hours-input { width:58px; height:33px; padding:4px; text-align:center; font-weight:700; }
+.hours-editor { display:grid; justify-items:center; gap:3px; }
+.hours-editor small { color:#728078; font-size:8px; line-height:1.2; }
 .cell-input { width:100%; min-width:112px; height:33px; padding:4px 6px; color:#315d46; font-size:11px; font-weight:700; text-align:center; }
 .cell-input.unavailable { border-color:#eadbd2; background:#fff4ee; color:#a04a22; }
 .availability-controls { display:grid; gap:4px; min-width:136px; }
@@ -61,6 +63,9 @@ tr:nth-child(even) td.person { background:#fafbf9; }
 .availability-time-select { width:100%; min-width:0; height:28px; padding:2px 5px; color:#315d46; font-size:10px; font-weight:700; }
 .availability-time-select.unavailable { border-color:#eadbd2; background:#fff4ee; color:#a04a22; }
 .availability-time-select:disabled { background:#f2f3f0; color:#a2aaa4; cursor:not-allowed; }
+.weekend-only { min-height:64px; display:grid; place-content:center; gap:3px; border-radius:8px; background:#f2f3f0; color:#8b938d; }
+.weekend-only strong { font-size:10px; }
+.weekend-only span { font-size:8px; }
 .shift { display:flex; align-items:center; justify-content:center; min-height:33px; border-radius:7px; padding:4px 6px; background:#e7f3eb; color:#246344; font-weight:700; }
 .shift.off { background:#f1f2ef; color:#8b918c; }
 .shift-cell { display:grid; gap:5px; min-width:136px; }
@@ -79,6 +84,7 @@ tr:nth-child(even) td.person { background:#fafbf9; }
 .hours-summary { display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:36px; border-radius:8px; padding:4px; }
 .hours-summary strong { font-size:14px; }
 .hours-summary span { color:#78847b; font-size:10px; }
+.hours-summary small { margin-top:2px; color:#66766b; font-size:8px; line-height:1.15; }
 .hours-summary.hours-ok { background:#e7f3eb; color:#246344; }
 .hours-summary.hours-warning { background:#fff4e8; color:#9a5a20; }
 .toggle { border:0; border-radius:999px; padding:5px 11px; background:#f1f2ef; color:#7a827c; font-size:11px; font-weight:800; }
@@ -104,6 +110,7 @@ tr:nth-child(even) td.person { background:#fafbf9; }
 .availability-form { display:grid; gap:8px; }
 .availability-row { display:grid; grid-template-columns:120px 170px 1fr; gap:12px; align-items:center; min-height:48px; padding:7px 10px; border:1px solid #e5e9e2; border-radius:10px; }
 .availability-row strong { font-size:13px; }
+.availability-row.pattern-disabled { opacity:.58; background:#f1f3ef; }
 .day-close { display:grid; gap:2px; text-align:left; }
 .day-close small { color:#758178; font-size:10px; }
 .availability-row select { height:34px; padding:0 8px; font-size:12px; }

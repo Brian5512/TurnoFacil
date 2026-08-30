@@ -47,9 +47,9 @@
           <label class="field"><span>Nombre completo</span><input id="employee-name" name="name" autocomplete="off" required placeholder="Ej.: Trabajador 3" /></label>
           <label class="field"><span>RUT</span><input id="employee-rut" name="rut" autocomplete="off" required placeholder="Ingresa el RUT" /></label>
           <label class="field"><span>Horas semanales</span><input id="employee-hours" name="hours" type="number" min="1" max="60" value="30" required /></label>
-          <label class="check-field"><input id="employee-overnight" name="overnight" type="checkbox" /><span>Puede trabajar trasnoche</span></label>
+          <label class="check-field"><input id="employee-overnight" name="overnight" type="checkbox" /><span>¿Puede tener cierre hasta la 01:00?</span></label>
         </div>
-        <div class="availability-form-head"><div><h3>Disponibilidad</h3><p>Selecciona completa, no disponible o un rango horario.</p></div></div>
+        <div class="availability-form-head"><div><h3>Disponibilidad</h3><p id="availability-pattern-note">Selecciona completa, no disponible o un rango horario.</p></div></div>
         <div id="availability-form" class="availability-form"></div>
         <div class="dialog-actions"><button type="button" id="cancel-add" class="button secondary">Cancelar</button><button type="submit" class="button primary">Guardar trabajador</button></div>
       </form>

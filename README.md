@@ -23,6 +23,7 @@ No requiere instalación ni conexión a Internet. Los datos que escribas se guar
 - Generar recomendaciones compatibles con la disponibilidad y las horas semanales, mostrando inicio y fin de cada turno.
 - Trabajar siempre con la semana completa vigente, de lunes a domingo, calculada desde la fecha del sistema.
 - Respetar los cierres operacionales: 23:00 de lunes a jueves y domingo; 01:00 del día siguiente viernes y sábado.
+- Aplicar jornadas por contrato: 30 horas en 5x2 (5 días de 6 horas), 20 horas en 4x3 (4 días de 5 horas) y 16 horas solamente sábado y domingo (2 días de 8 horas).
 - Elegir manualmente entre opciones de turno válidas para cada día.
 - Comparar horas asignadas con horas contratadas.
 - Imprimir o descargar el horario como CSV.
