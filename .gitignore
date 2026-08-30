@@ -1,0 +1,11 @@
+/clean-site/
+/desktop-app/
+/node_modules/
+/.next/
+/.pnpm-store/
+/.vinext/
+/.vite/
+/.wrangler/
+/dist/
+/work/
+/next-env.d.ts

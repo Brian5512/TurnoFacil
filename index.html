@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>TurnoFácil</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand"><div class="brand-icon">▦</div><div><strong>TurnoFácil</strong><small>Planificador semanal</small></div></div>
+      <div id="save-state" class="save-state">Guardado automático</div>
+    </header>
+    <main class="workspace">
+      <section class="intro">
+        <div><div class="eyebrow">Semana de trabajo</div><h1 id="week-title">Horario semanal</h1><p>Define disponibilidades y genera una propuesta en segundos.</p></div>
+        <div class="actions">
+          <input id="week" type="date" aria-label="Lunes de la semana" />
+          <button id="print" class="button secondary">Imprimir</button>
+          <button id="export" class="button secondary">Descargar CSV</button>
+          <button id="generate" class="button primary">✦ Generar horario</button>
+        </div>
+      </section>
+      <section id="metrics" class="metrics"></section>
+      <section class="panel">
+        <div class="panel-toolbar">
+          <div class="tabs"><button data-view="availability" class="tab active">Disponibilidades</button><button data-view="schedule" class="tab">Horario generado</button></div>
+          <button id="add" class="button secondary">＋ Agregar trabajador</button>
+        </div>
+        <div class="table-wrap"><table id="schedule-table"></table></div>
+        <div class="hint"><span>Escribe <b>COMPLETA</b>, <b>X</b> o un rango como <b>09:00 - 18:00</b>. Los datos se guardan solamente en este navegador.</span><span id="row-count"></span></div>
+      </section>
+    </main>
+    <div id="toast" role="status"></div>
+    <script src="app.js"></script>
+  </body>
+</html>
