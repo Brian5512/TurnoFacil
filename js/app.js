@@ -203,11 +203,12 @@ function shiftOptions(employee, day, extraDurations = []) {
     if (value !== 'LIBRE' && hours > 0 && !collected.has(value)) collected.set(value, { value, hours, label: shiftDescription(value, note) });
   };
 
-  const baseDurations = pattern ? [pattern.dailyHours] : [4, 6, 8];
-  const durations = [...new Set([...baseDurations, ...extraDurations]
+  const dynamicDurations = extraDurations
     .map(Number)
     .filter((duration) => Number.isFinite(duration) && duration > 0)
-    .map((duration) => Math.round(duration * 2) / 2))]
+    .map((duration) => Math.round(duration * 2) / 2);
+  const baseDurations = pattern && dynamicDurations.length ? [] : pattern ? [pattern.dailyHours] : [4, 6, 8];
+  const durations = [...new Set([...baseDurations, ...dynamicDurations])]
     .filter((duration) => duration + mealBreakHours <= window.capacity);
   if (!durations.length && !pattern) add(`${formatTime(window.start)} - ${formatTime(window.end)}`, 'todo el rango');
   durations.forEach((duration) => {
