@@ -29,15 +29,10 @@ vm.runInContext(`
   render = () => {};
   toast = () => {};
   state = {
-    version: 2,
+    version: 3,
     week: '2026-08-24',
     view: 'availability',
-    strategy: 'coverage',
     history: {},
-    coverageRules: [
-      { id: 1, day: 'Sábado', start: '09:00', end: '20:00', needed: 1, role: 'Crew' },
-      { id: 2, day: 'Domingo', start: '09:00', end: '20:00', needed: 1, role: 'Crew' }
-    ],
     employees: [{
       id: 10,
       name: 'Prueba',
@@ -57,18 +52,16 @@ const result = vm.runInContext(`({
   assigned: assignedHours(10),
   saturday: state.schedule[10].Sábado,
   sunday: state.schedule[10].Domingo,
-  coverage: overallCoverage(),
   fridayOptions: shiftOptions({ ...state.employees[0], hours: 20, availability: { ...state.employees[0].availability, Viernes: 'COMPLETA' } }, 'Viernes', [10]).filter(option => option.hours === 10).map(option => option.value),
   validRut: isValidRut('12.345.678-5'),
   alerts: (state.view = 'schedule', buildAlerts().length),
-  migratedRoles: [normalizeEmployeeRole('General'), normalizeEmployeeRole('Crew-Master'), normalizeCoverageRole('Todos')]
+  migratedRoles: [normalizeEmployeeRole('General'), normalizeEmployeeRole('Crew-Master')]
 })`, context);
 
 assert.strictEqual(result.assigned, 20);
-assert.strictEqual(result.coverage, 100);
 assert.strictEqual(result.validRut, true);
 assert.strictEqual(result.alerts, 0);
-assert.deepStrictEqual(Array.from(result.migratedRoles), ['Crew', 'Crew-Master', 'Todos']);
+assert.deepStrictEqual(Array.from(result.migratedRoles), ['Crew', 'Crew-Master']);
 assert.strictEqual(result.fridayOptions.length, 11);
 assert.strictEqual(result.fridayOptions[0], '09:00 - 20:00');
 assert.strictEqual(result.fridayOptions.at(-1), '14:00 - 01:00');

@@ -30,10 +30,8 @@ No requiere instalación ni conexión a Internet. Los datos se guardan automáti
 - Limitar todas las alternativas al horario operativo: inicio desde las 09:00 y término máximo a la 01:00, respetando el cierre específico de cada día.
 - Elegir manualmente entre opciones de turno válidas para cada día.
 - Copiar y pegar turnos solamente cuando caben en la disponibilidad del trabajador de destino.
-- Configurar reglas de dotación por día, franja horaria y cargo, con medición de cobertura en bloques de 30 minutos.
-- Generar tres tipos de propuesta: equilibrada, máxima cobertura y menos cierres.
 - Comparar horas asignadas con horas contratadas.
-- Mostrar alertas por RUT, horas insuficientes, contratos por ajustar y falta de dotación.
+- Mostrar alertas por RUT, horas insuficientes y contratos por ajustar.
 - Descargar el horario para Excel y guardarlo como PDF mediante la impresión del navegador.
 - Abrir una vista individual con turno diario, horas históricas y cantidad de cierres por trabajador.
 - Crear e importar respaldos completos en formato JSON.

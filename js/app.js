@@ -1,6 +1,6 @@
 const days = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
 const storageKey = 'turnofacil-html-v1';
-const appVersion = 2;
+const appVersion = 3;
 const mealBreakHours = 1;
 const openingMinutes = 9 * 60;
 const complete = () => Object.fromEntries(days.map((day) => [day, 'COMPLETA']));
@@ -10,7 +10,7 @@ const seed = [
   { id: 2, name: 'Trabajador 2', rut: '', role: 'Crew', hours: 20, overnight: false, availability: complete() },
 ];
 
-let state = { version: appVersion, employees: seed, week: getMonday(), view: 'availability', strategy: 'balanced', schedule: {}, recommendations: {}, coverageRules: [], history: {} };
+let state = { version: appVersion, employees: seed, week: getMonday(), view: 'availability', schedule: {}, recommendations: {}, history: {} };
 let shiftClipboard = null;
 let saveTimer;
 
@@ -57,25 +57,6 @@ function normalizeEmployeeRole(value) {
   return String(value || '').trim().toLocaleLowerCase('es') === 'crew-master' ? 'Crew-Master' : 'Crew';
 }
 
-function normalizeCoverageRole(value) {
-  return String(value || '').trim().toLocaleLowerCase('es') === 'todos' ? 'Todos' : normalizeEmployeeRole(value);
-}
-
-function normalizeCoverageRule(rule, index = 0) {
-  const day = days.includes(rule.day) ? rule.day : 'Lunes';
-  const startCandidate = /^\d{1,2}:\d{2}$/.test(String(rule.start || '')) ? String(rule.start) : '09:00';
-  const start = parseTime(startCandidate) >= openingMinutes && parseTime(startCandidate) < Math.min(closingMinutes(day), 1440) ? startCandidate : '09:00';
-  const endCandidate = /^\d{1,2}:\d{2}$/.test(String(rule.end || '')) ? String(rule.end) : defaultEndForDay(day, start);
-  return {
-    id: Number(rule.id) || Date.now() + index,
-    day,
-    start,
-    end: endWithinClosing(day, start, endCandidate) ? endCandidate : defaultEndForDay(day, start),
-    needed: Math.max(1, Math.min(50, Number(rule.needed) || 1)),
-    role: normalizeCoverageRole(rule.role),
-  };
-}
-
 function load() {
   try {
     const saved = JSON.parse(localStorage.getItem(storageKey));
@@ -85,9 +66,11 @@ function load() {
         ...saved,
         version: appVersion,
         employees: saved.employees.map((employee, index) => ({ ...employee, id: Number(employee.id) || Date.now() + index, role: normalizeEmployeeRole(employee.role), availability: { ...complete(), ...(employee.availability || {}) } })),
-        coverageRules: Array.isArray(saved.coverageRules) ? saved.coverageRules.map(normalizeCoverageRule) : [],
         history: saved.history && typeof saved.history === 'object' ? saved.history : {},
       };
+      delete state.coverageRules;
+      delete state.strategy;
+      Object.values(state.history).forEach((week) => { if (week && typeof week === 'object') delete week.strategy; });
       if (!state.history[state.week] && (Object.keys(state.schedule || {}).length || Object.keys(state.recommendations || {}).length)) persistCurrentWeek();
     }
   } catch (_) { /* Mantener datos iniciales si el almacenamiento está dañado. */ }
@@ -96,20 +79,18 @@ function load() {
     state.week = systemWeek;
     restoreWeek(systemWeek);
   }
-  state.view = ['availability', 'schedule', 'coverage'].includes(state.view) ? state.view : 'availability';
-  state.strategy = ['balanced', 'coverage', 'early'].includes(state.strategy) ? state.strategy : 'balanced';
+  state.view = ['availability', 'schedule'].includes(state.view) ? state.view : 'availability';
 }
 
 function persistCurrentWeek() {
   state.history ??= {};
-  state.history[state.week] = { schedule: clone(state.schedule || {}), recommendations: clone(state.recommendations || {}), strategy: state.strategy || 'balanced', updatedAt: new Date().toISOString() };
+  state.history[state.week] = { schedule: clone(state.schedule || {}), recommendations: clone(state.recommendations || {}), updatedAt: new Date().toISOString() };
 }
 
 function restoreWeek(week) {
   const savedWeek = state.history?.[week];
   state.schedule = clone(savedWeek?.schedule || {});
   state.recommendations = clone(savedWeek?.recommendations || {});
-  state.strategy = savedWeek?.strategy || state.strategy || 'balanced';
 }
 
 function save() {
@@ -294,59 +275,6 @@ function shiftOptions(employee, day, extraDurations = []) {
   return [...options, ...collected.values()];
 }
 
-function roleMatches(employeeRole, requiredRole) {
-  const required = String(requiredRole || 'Todos').trim().toLocaleLowerCase('es');
-  return required === 'todos' || normalizeEmployeeRole(employeeRole).toLocaleLowerCase('es') === required;
-}
-
-function ruleWindow(rule) {
-  return { start: parseTime(rule.start), end: endMinutesForRange(rule.start, rule.end) };
-}
-
-function shiftCoversMinute(value, minute) {
-  const window = parseWindow(value);
-  return Boolean(window && window.start <= minute && window.end > minute);
-}
-
-function coverageForSlot(rule, minute, schedule = state.schedule) {
-  return state.employees.filter((employee) => roleMatches(employee.role, rule.role)
-    && shiftCoversMinute(schedule?.[employee.id]?.[rule.day], minute)).length;
-}
-
-function coverageRuleStats(rule, schedule = state.schedule) {
-  const window = ruleWindow(rule);
-  const counts = [];
-  for (let minute = window.start; minute < window.end; minute += 30) counts.push(coverageForSlot(rule, minute, schedule));
-  const minimum = counts.length ? Math.min(...counts) : 0;
-  const requiredUnits = counts.length * Number(rule.needed || 1);
-  const coveredUnits = counts.reduce((sum, count) => sum + Math.min(count, Number(rule.needed || 1)), 0);
-  return { minimum, missing: Math.max(0, Number(rule.needed || 1) - minimum), requiredUnits, coveredUnits };
-}
-
-function overallCoverage() {
-  if (!state.coverageRules.length) return null;
-  const totals = state.coverageRules.reduce((result, rule) => {
-    const stats = coverageRuleStats(rule);
-    result.required += stats.requiredUnits;
-    result.covered += stats.coveredUnits;
-    return result;
-  }, { required: 0, covered: 0 });
-  return totals.required ? Math.round((totals.covered / totals.required) * 100) : 100;
-}
-
-function optionCoverageGain(employee, day, value, schedule) {
-  const optionWindow = parseWindow(value);
-  if (!optionWindow) return 0;
-  let score = 0;
-  for (const rule of state.coverageRules.filter((item) => item.day === day && roleMatches(employee.role, item.role))) {
-    const window = ruleWindow(rule);
-    for (let minute = window.start; minute < window.end; minute += 30) {
-      if (minute >= optionWindow.start && minute < optionWindow.end && coverageForSlot(rule, minute, schedule) < rule.needed) score += 1;
-    }
-  }
-  return score;
-}
-
 function historicalClosingCount(employeeId) {
   return Object.values(state.history || {}).reduce((total, week) => total + days.filter((day) => {
     const window = parseWindow(week.schedule?.[employeeId]?.[day]);
@@ -354,15 +282,11 @@ function historicalClosingCount(employeeId) {
   }).length, 0);
 }
 
-function optionScore(employee, day, option, schedule, strategy) {
+function optionScore(employee, day, option) {
   const window = parseWindow(option.value);
   if (!window) return -Infinity;
-  const coverage = optionCoverageGain(employee, day, option.value, schedule);
   const closes = window.end === closingMinutes(day);
-  const lateMinutes = Math.max(0, window.end - 20 * 60);
-  if (strategy === 'coverage') return coverage * 10000 - window.start / 100;
-  if (strategy === 'early') return coverage * 250 - lateMinutes - (closes ? 500 : 0);
-  return coverage * 1200 - (closes ? 70 + historicalClosingCount(employee.id) * 8 : 0) - window.start / 1000;
+  return -(closes ? 70 + historicalClosingCount(employee.id) * 8 : 0) - window.start / 1000;
 }
 
 function patternDayCandidates(employee, pattern) {
@@ -371,19 +295,10 @@ function patternDayCandidates(employee, pattern) {
     .filter((candidate) => candidate.capacity > 0);
 }
 
-function selectPatternDays(employee, pattern, schedule = state.schedule, strategy = state.strategy) {
-  const candidates = patternDayCandidates(employee, pattern);
-  const target = Number(employee.hours || 0) / Math.max(1, Math.min(pattern.workDays, candidates.length));
-  const ranked = candidates.map((candidate) => {
-    const option = bestShift(employee, candidate.day, target, target, schedule, strategy);
-    const gain = option ? optionCoverageGain(employee, candidate.day, option.value, schedule) : 0;
-    const latePenalty = strategy === 'early' && ['Viernes', 'Sábado'].includes(candidate.day) ? 20 : 0;
-    return { ...candidate, score: gain * (strategy === 'coverage' ? 1000 : 100) + candidate.capacity - latePenalty };
-  }).sort((a, b) => b.score - a.score || a.index - b.index);
-  let selected = ranked.slice(0, pattern.workDays);
-  if (selected.reduce((sum, candidate) => sum + candidate.capacity, 0) < Number(employee.hours || 0)) {
-    selected = [...candidates].sort((a, b) => b.capacity - a.capacity || a.index - b.index).slice(0, pattern.workDays);
-  }
+function selectPatternDays(employee, pattern) {
+  const candidates = patternDayCandidates(employee, pattern).sort((a, b) => a.index - b.index);
+  let selected = candidates.slice(0, pattern.workDays);
+  if (selected.reduce((sum, candidate) => sum + candidate.capacity, 0) < Number(employee.hours || 0)) selected = [...candidates].sort((a, b) => b.capacity - a.capacity || a.index - b.index).slice(0, pattern.workDays);
   return selected
     .slice(0, pattern.workDays)
     .sort((a, b) => a.index - b.index);
@@ -430,14 +345,14 @@ function enforceClosingLimits() {
   if (changed) save();
 }
 
-function bestShift(employee, day, remaining, requestedHours = null, schedule = state.schedule, strategy = state.strategy) {
+function bestShift(employee, day, remaining, requestedHours = null) {
   const pattern = workPattern(employee);
   const target = requestedHours ?? (pattern ? pattern.dailyHours : Math.min(8, remaining));
   const options = shiftOptions(employee, day, [target]).filter((option) => option.hours > 0 && (requestedHours === null || Math.abs(option.hours - target) < 0.01));
   if (!options.length) return null;
   const notOver = options.filter((option) => option.hours <= remaining + 0.001);
   const pool = notOver.length ? notOver : options;
-  return pool.sort((a, b) => optionScore(employee, day, b, schedule, strategy) - optionScore(employee, day, a, schedule, strategy)
+  return pool.sort((a, b) => optionScore(employee, day, b) - optionScore(employee, day, a)
     || Math.abs(a.hours - target) - Math.abs(b.hours - target))[0];
 }
 
@@ -454,12 +369,12 @@ function generateSchedule() {
     let flexibleDays = 0;
     while (flexibleDays < capacities.length && accumulated < Number(employee.hours || 0)) accumulated += capacities[flexibleDays++];
     const effectivePattern = pattern || { allowedDays: days, workDays: Math.max(1, flexibleDays), dailyHours: 8 };
-    const candidates = selectPatternDays(employee, effectivePattern, schedule, state.strategy);
+    const candidates = selectPatternDays(employee, effectivePattern);
     const allocations = allocateContractHours(employee.hours, candidates);
     for (const candidate of candidates) {
       const requestedHours = allocations.get(candidate.day) || 0;
       if (requestedHours <= 0) continue;
-      const option = bestShift(employee, candidate.day, requestedHours, requestedHours, schedule, state.strategy);
+      const option = bestShift(employee, candidate.day, requestedHours, requestedHours);
       if (!option) continue;
       schedule[employee.id][candidate.day] = option.value;
       recommendations[employee.id][candidate.day] = option.value;
@@ -470,8 +385,7 @@ function generateSchedule() {
   state.view = 'schedule';
   save();
   render();
-  const labels = { balanced: 'equilibrada', coverage: 'de máxima cobertura', early: 'con menos cierres' };
-  toast(`Propuesta ${labels[state.strategy]} generada según disponibilidad y dotación.`);
+  toast('Horario generado según disponibilidad y horas contratadas.');
 }
 
 function weekLabel() {
@@ -532,10 +446,6 @@ function buildAlerts() {
       alerts.push({ type: 'warning', text: `${employee.name}: ${difference > 0 ? 'faltan' : 'sobran'} ${formatNumber(Math.abs(difference))} h por ajustar.` });
     }
   });
-  state.coverageRules.forEach((rule) => {
-    const stats = coverageRuleStats(rule);
-    if (stats.missing > 0) alerts.push({ type: 'coverage', text: `${rule.day} ${rule.start}–${rule.end}: faltan ${stats.missing} de ${rule.role}.` });
-  });
   return alerts;
 }
 
@@ -543,11 +453,9 @@ function renderMetrics() {
   const totalContracted = state.employees.reduce((sum, employee) => sum + Number(employee.hours || 0), 0);
   const totalAssigned = state.employees.reduce((sum, employee) => sum + assignedHours(employee.id), 0);
   const alerts = buildAlerts();
-  const coverage = overallCoverage();
   const metrics = [
     ['Equipo', state.employees.length, 'trabajadores activos', '●'],
     ['Horas programadas', totalAssigned, `de ${totalContracted} contratadas`, '◷'],
-    ['Cobertura', coverage === null ? '—' : `${coverage}%`, coverage === null ? 'configura la dotación' : 'de la necesidad semanal', '▦'],
     ['Alertas', alerts.length, alerts.length ? 'revisiones pendientes' : 'todo en orden', alerts.length ? '!' : '✓'],
   ];
   $('#metrics').innerHTML = metrics.map(([label, value, note, icon]) => `<div class="metric"><div class="metric-label"><span>${label}</span><span class="metric-icon">${icon}</span></div><div class="metric-value">${typeof value === 'number' ? formatNumber(value) : value}</div><div class="metric-note">${note}</div></div>`).join('');
@@ -557,7 +465,7 @@ function renderAlerts() {
   const alerts = buildAlerts();
   const panel = $('#alerts-panel');
   if (!alerts.length) {
-    panel.innerHTML = '<div class="alerts-ok"><strong>✓ Sin alertas</strong><span>Las horas, disponibilidades y reglas configuradas están cubiertas.</span></div>';
+    panel.innerHTML = '<div class="alerts-ok"><strong>✓ Sin alertas</strong><span>Las horas contratadas y disponibilidades están correctamente ajustadas.</span></div>';
     return;
   }
   const visible = alerts.slice(0, 8);
@@ -565,10 +473,6 @@ function renderAlerts() {
 }
 
 function renderTable() {
-  if (state.view === 'coverage') {
-    renderCoverageTable();
-    return;
-  }
   const table = $('#schedule-table');
   table.className = '';
   const body = state.employees.length ? state.employees.map(rowHtml).join('') : '<tr><td colspan="11" class="empty-row">No hay trabajadores. Usa “Agregar trabajador” para comenzar.</td></tr>';
@@ -615,22 +519,6 @@ function rowHtml(employee, index) {
     ? `<div class="hours-summary ${hoursClass}"><strong>${formatNumber(assigned)}</strong><span>/ ${formatNumber(employee.hours)} h</span><small>${patternSummary(employee)}</small></div>`
     : `<div class="hours-editor"><input class="hours-input" type="number" min="1" max="60" data-id="${employee.id}" data-field="hours" value="${employee.hours}" /><small>${patternSummary(employee)}</small></div>`;
   return `<tr><td class="person"><input class="person-input" data-id="${employee.id}" data-field="name" value="${escapeHtml(employee.name)}" /><input class="person-input rut" data-id="${employee.id}" data-field="rut" value="${escapeHtml(employee.rut)}" placeholder="RUT" /><select class="person-input role" data-id="${employee.id}" data-field="role"><option value="Crew" ${employee.role === 'Crew' ? 'selected' : ''}>Crew</option><option value="Crew-Master" ${employee.role === 'Crew-Master' ? 'selected' : ''}>Crew-Master</option></select></td><td>${hoursCell}</td>${dayCells}<td><button class="toggle ${employee.overnight ? 'on' : ''}" data-id="${employee.id}" data-action="overnight" aria-label="${escapeHtml(employee.name)}: puede tener cierre hasta la 01:00, ${employee.overnight ? 'sí' : 'no'}">${employee.overnight ? 'SÍ' : 'NO'}</button></td><td class="remove-cell"><button class="delete" title="Eliminar trabajador" data-id="${employee.id}" data-action="delete">×</button></td></tr>`;
-}
-
-function renderCoverageTable() {
-  const table = $('#schedule-table');
-  table.className = 'coverage-table';
-  const body = state.coverageRules.length ? [...state.coverageRules]
-    .sort((a, b) => days.indexOf(a.day) - days.indexOf(b.day) || parseTime(a.start) - parseTime(b.start))
-    .map((rule) => {
-      const stats = coverageRuleStats(rule);
-      const excess = Math.max(0, stats.minimum - Number(rule.needed || 1));
-      const status = stats.missing ? `<span class="coverage-status missing">Faltan ${stats.missing}</span>` : excess ? `<span class="coverage-status excess">＋ ${excess} disponibles</span>` : '<span class="coverage-status ok">Completa</span>';
-      return `<tr><td><select data-rule-id="${rule.id}" data-rule-field="day">${days.map((day) => `<option value="${day}" ${day === rule.day ? 'selected' : ''}>${day}</option>`).join('')}</select></td><td><div class="coverage-window"><select data-rule-id="${rule.id}" data-rule-field="start">${startTimeOptionsHtml(rule.day, rule.start)}</select><span>→</span><select data-rule-id="${rule.id}" data-rule-field="end">${endTimeOptionsHtml(rule.day, rule.start, rule.end)}</select></div></td><td><select data-rule-id="${rule.id}" data-rule-field="role"><option value="Todos" ${rule.role === 'Todos' ? 'selected' : ''}>Todos</option><option value="Crew" ${rule.role === 'Crew' ? 'selected' : ''}>Crew</option><option value="Crew-Master" ${rule.role === 'Crew-Master' ? 'selected' : ''}>Crew-Master</option></select></td><td><input class="number-field" type="number" min="1" max="50" data-rule-id="${rule.id}" data-rule-field="needed" value="${rule.needed}" /></td><td><strong>${stats.minimum}</strong> personas</td><td>${status}</td><td><button class="delete" data-action="delete-rule" data-rule-id="${rule.id}" title="Eliminar regla">×</button></td></tr>`;
-    }).join('') : '<tr><td colspan="7" class="empty-row">Todavía no hay reglas de dotación. Agrega la primera para medir la cobertura del horario.</td></tr>';
-  table.innerHTML = `<thead><tr><th>Día</th><th>Franja horaria</th><th>Cargo</th><th>Necesarios</th><th>Cobertura mínima</th><th>Estado</th><th></th></tr></thead><tbody>${body}</tbody>`;
-  table.querySelectorAll('[data-rule-field]').forEach((input) => input.addEventListener('change', onCoverageRuleChange));
-  table.querySelectorAll('[data-action="delete-rule"]').forEach((button) => button.addEventListener('click', deleteCoverageRule));
 }
 
 function renderAvailabilityForm() {
@@ -723,52 +611,6 @@ function addEmployeeFromForm(event) {
   $('#employee-dialog').close();
   render();
   toast('Trabajador agregado correctamente.');
-}
-
-function renderCoverageForm() {
-  const day = $('#coverage-day').value || 'Lunes';
-  $('#coverage-day').innerHTML = days.map((item) => `<option value="${item}" ${item === day ? 'selected' : ''}>${item}</option>`).join('');
-  $('#coverage-start').innerHTML = startTimeOptionsHtml(day, '09:00');
-  $('#coverage-end').innerHTML = endTimeOptionsHtml(day, '09:00', '12:00');
-}
-
-function refreshCoverageEnd() {
-  const day = $('#coverage-day').value;
-  const start = $('#coverage-start').value;
-  const current = $('#coverage-end').value;
-  const selected = endWithinClosing(day, start, current) ? current : defaultEndForDay(day, start);
-  $('#coverage-start').innerHTML = startTimeOptionsHtml(day, start);
-  $('#coverage-end').innerHTML = endTimeOptionsHtml(day, start, selected);
-}
-
-function openCoverageDialog() {
-  $('#coverage-form').reset();
-  $('#coverage-needed').value = 1;
-  $('#coverage-role').value = 'Todos';
-  renderCoverageForm();
-  $('#coverage-dialog').showModal();
-}
-
-function addCoverageRule(event) {
-  event.preventDefault();
-  const rule = {
-    id: Date.now(),
-    day: $('#coverage-day').value,
-    start: $('#coverage-start').value,
-    end: $('#coverage-end').value,
-    needed: Math.max(1, Math.min(50, Number($('#coverage-needed').value) || 1)),
-    role: $('#coverage-role').value.trim() || 'Todos',
-  };
-  if (!endWithinClosing(rule.day, rule.start, rule.end)) {
-    toast('Revisa la franja horaria de la regla.');
-    return;
-  }
-  state.coverageRules.push(rule);
-  state.view = 'coverage';
-  save();
-  $('#coverage-dialog').close();
-  render();
-  toast('Regla de dotación agregada.');
 }
 
 function formatRut(value) {
@@ -889,25 +731,6 @@ function deleteEmployee(event) {
   render();
 }
 
-function onCoverageRuleChange(event) {
-  const rule = state.coverageRules.find((item) => item.id === Number(event.target.dataset.ruleId));
-  if (!rule) return;
-  const field = event.target.dataset.ruleField;
-  if (field === 'needed') rule.needed = Math.max(1, Math.min(50, Number(event.target.value) || 1));
-  else rule[field] = event.target.value.trim();
-  if (field === 'day' && parseTime(rule.start) >= Math.min(closingMinutes(rule.day), 1440)) rule.start = '09:00';
-  if ((field === 'day' || field === 'start') && !endWithinClosing(rule.day, rule.start, rule.end)) rule.end = defaultEndForDay(rule.day, rule.start);
-  save();
-  render();
-}
-
-function deleteCoverageRule(event) {
-  state.coverageRules = state.coverageRules.filter((rule) => rule.id !== Number(event.currentTarget.dataset.ruleId));
-  save();
-  render();
-  toast('Regla eliminada.');
-}
-
 function changeWeek(week) {
   persistCurrentWeek();
   state.week = normalizeMonday(week);
@@ -980,9 +803,12 @@ async function importBackup(event) {
       version: appVersion,
       week: normalizeMonday(imported.week || getMonday()),
       employees: imported.employees.map((employee, index) => ({ ...employee, id: Number(employee.id) || Date.now() + index, role: normalizeEmployeeRole(employee.role), availability: { ...complete(), ...(employee.availability || {}) } })),
-      coverageRules: Array.isArray(imported.coverageRules) ? imported.coverageRules.map(normalizeCoverageRule) : [],
       history: imported.history && typeof imported.history === 'object' ? imported.history : {},
     };
+    delete state.coverageRules;
+    delete state.strategy;
+    Object.values(state.history).forEach((week) => { if (week && typeof week === 'object') delete week.strategy; });
+    state.view = ['availability', 'schedule'].includes(state.view) ? state.view : 'availability';
     enforceClosingLimits();
     save();
     render();
@@ -1069,16 +895,11 @@ function escapeHtml(value = '') {
 
 function render() {
   $('#week').value = state.week;
-  $('#strategy').value = state.strategy;
   $('#week-title').textContent = `Horario del ${weekLabel()}`;
-  $('#row-count').textContent = state.view === 'coverage' ? `${state.coverageRules.length} reglas` : `${state.employees.length} trabajadores`;
-  $('#open-coverage').hidden = state.view !== 'coverage';
-  $('#open-add').hidden = state.view === 'coverage';
-  $('#view-hint').innerHTML = state.view === 'coverage'
-    ? 'La cobertura mínima se calcula en bloques de <b>30 minutos</b> usando el horario generado.'
-    : state.view === 'availability'
-      ? 'Define la disponibilidad real; el generador nunca asignará un turno fuera de estos rangos.'
-      : 'Puedes cambiar, copiar y pegar turnos válidos. Cada turno incluye <b>1 hora de colación</b>.';
+  $('#row-count').textContent = `${state.employees.length} trabajadores`;
+  $('#view-hint').innerHTML = state.view === 'availability'
+    ? 'Define la disponibilidad real; el generador nunca asignará un turno fuera de estos rangos.'
+    : 'Puedes cambiar, copiar y pegar turnos válidos. Cada turno incluye <b>1 hora de colación</b>.';
   $$('.tab').forEach((tab) => tab.classList.toggle('active', tab.dataset.view === state.view));
   renderMetrics();
   renderAlerts();
@@ -1086,7 +907,6 @@ function render() {
 }
 
 $('#generate').addEventListener('click', generateSchedule);
-$('#strategy').addEventListener('change', (event) => { state.strategy = event.target.value; save(); });
 $('#previous-week').addEventListener('click', () => changeWeek(addDaysToDate(state.week, -7)));
 $('#next-week').addEventListener('click', () => changeWeek(addDaysToDate(state.week, 7)));
 $('#current-week').addEventListener('click', () => changeWeek(getMonday()));
@@ -1097,12 +917,6 @@ $('#close-add').addEventListener('click', () => $('#employee-dialog').close());
 $('#cancel-add').addEventListener('click', () => $('#employee-dialog').close());
 $('#employee-form').addEventListener('submit', addEmployeeFromForm);
 $('#employee-hours').addEventListener('input', updateAvailabilityFormPattern);
-$('#open-coverage').addEventListener('click', openCoverageDialog);
-$('#close-coverage').addEventListener('click', () => $('#coverage-dialog').close());
-$('#cancel-coverage').addEventListener('click', () => $('#coverage-dialog').close());
-$('#coverage-form').addEventListener('submit', addCoverageRule);
-$('#coverage-day').addEventListener('change', refreshCoverageEnd);
-$('#coverage-start').addEventListener('change', refreshCoverageEnd);
 $('#export').addEventListener('click', exportExcel);
 $('#print').addEventListener('click', savePdf);
 $('#individual-report').addEventListener('click', openIndividualReport);
