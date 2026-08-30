@@ -13,6 +13,8 @@ const seed = [
 let state = { version: appVersion, employees: seed, week: getMonday(), view: 'availability', schedule: {}, recommendations: {}, history: {} };
 let shiftClipboard = null;
 let saveTimer;
+const mobileExpandedEmployees = new Set();
+let mobileExpansionInitialized = false;
 
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => [...document.querySelectorAll(selector)];
@@ -97,7 +99,7 @@ function save() {
   persistCurrentWeek();
   localStorage.setItem(storageKey, JSON.stringify(state));
   const indicator = $('#save-state');
-  indicator.textContent = '✓ Guardado en este navegador';
+  indicator.textContent = 'Guardado en este navegador';
   indicator.classList.add('saved');
   clearTimeout(saveTimer);
   saveTimer = setTimeout(() => {
@@ -196,8 +198,8 @@ function makeShift(start, workedHours) {
 function shiftDescription(value, note = '') {
   const window = parseWindow(value);
   if (!window) return value;
-  const suffix = note ? ` · ${note}` : '';
-  return `${formatTime(window.start)} → ${formatTime(window.end)} · ${formatNumber(shiftHours(value))} h trabajo + 1 h colación${suffix}`;
+  const suffix = note ? ` | ${note}` : '';
+  return `${formatTime(window.start)} a ${formatTime(window.end)} | ${formatNumber(shiftHours(value))} h trabajo + 1 h colación${suffix}`;
 }
 
 function workPattern(employee) {
@@ -211,8 +213,8 @@ function workPattern(employee) {
 function patternSummary(employee) {
   const pattern = workPattern(employee);
   if (!pattern) return 'Distribución flexible';
-  if (pattern.weekendOnly) return 'Solo sábado y domingo · 8 h + 1 h colación';
-  return `${pattern.code} · horas ajustadas a disponibilidad`;
+  if (pattern.weekendOnly) return 'Solo sábado y domingo | 8 h + 1 h colación';
+  return `${pattern.code} | horas ajustadas a disponibilidad`;
 }
 
 function workWindow(employee, day) {
@@ -393,7 +395,7 @@ function weekLabel() {
   const end = new Date(start);
   end.setDate(end.getDate() + 6);
   const formatter = new Intl.DateTimeFormat('es-CL', { day: '2-digit', month: 'short' });
-  return `${formatter.format(start)} — ${formatter.format(end)}`;
+  return `${formatter.format(start)} al ${formatter.format(end)}`;
 }
 
 function availabilityCapacity(employee) {
@@ -454,22 +456,22 @@ function renderMetrics() {
   const totalAssigned = state.employees.reduce((sum, employee) => sum + assignedHours(employee.id), 0);
   const alerts = buildAlerts();
   const metrics = [
-    ['Equipo', state.employees.length, 'trabajadores activos', '●'],
-    ['Horas programadas', totalAssigned, `de ${totalContracted} contratadas`, '◷'],
-    ['Alertas', alerts.length, alerts.length ? 'revisiones pendientes' : 'todo en orden', alerts.length ? '!' : '✓'],
+    ['Equipo', state.employees.length, 'trabajadores activos'],
+    ['Horas programadas', totalAssigned, `de ${totalContracted} contratadas`],
+    ['Estado semanal', alerts.length, alerts.length ? 'revisiones pendientes' : 'sin revisiones'],
   ];
-  $('#metrics').innerHTML = metrics.map(([label, value, note, icon]) => `<div class="metric"><div class="metric-label"><span>${label}</span><span class="metric-icon">${icon}</span></div><div class="metric-value">${typeof value === 'number' ? formatNumber(value) : value}</div><div class="metric-note">${note}</div></div>`).join('');
+  $('#metrics').innerHTML = metrics.map(([label, value, note]) => `<div class="metric"><div class="metric-label">${label}</div><div class="metric-value">${typeof value === 'number' ? formatNumber(value) : value}</div><div class="metric-note">${note}</div></div>`).join('');
 }
 
 function renderAlerts() {
   const alerts = buildAlerts();
   const panel = $('#alerts-panel');
   if (!alerts.length) {
-    panel.innerHTML = '<div class="alerts-ok"><strong>✓ Sin alertas</strong><span>Las horas contratadas y disponibilidades están correctamente ajustadas.</span></div>';
+    panel.innerHTML = '<div class="alerts-ok"><strong>Semana lista para trabajar</strong><span>Las horas contratadas y disponibilidades están correctamente ajustadas.</span></div>';
     return;
   }
   const visible = alerts.slice(0, 8);
-  panel.innerHTML = `<div class="alerts-head"><strong>Revisiones recomendadas</strong><span>${alerts.length} alerta${alerts.length === 1 ? '' : 's'}</span></div><div class="alert-list">${visible.map((alert) => `<span class="alert-chip ${alert.type}">${escapeHtml(alert.text)}</span>`).join('')}${alerts.length > visible.length ? `<span class="alert-chip more">＋ ${alerts.length - visible.length} adicionales</span>` : ''}</div>`;
+  panel.innerHTML = `<div class="alerts-head"><strong>Revisiones recomendadas</strong><span>${alerts.length} alerta${alerts.length === 1 ? '' : 's'}</span></div><div class="alert-list">${visible.map((alert) => `<span class="alert-chip ${alert.type}">${escapeHtml(alert.text)}</span>`).join('')}${alerts.length > visible.length ? `<span class="alert-chip more">${alerts.length - visible.length} adicionales</span>` : ''}</div>`;
 }
 
 function renderTable() {
@@ -477,19 +479,21 @@ function renderTable() {
   table.className = '';
   const body = state.employees.length ? state.employees.map(rowHtml).join('') : '<tr><td colspan="11" class="empty-row">No hay trabajadores. Usa “Agregar trabajador” para comenzar.</td></tr>';
   const today = localDateValue(new Date());
-  table.innerHTML = `<thead><tr><th>Trabajador y cargo</th><th class="hours">${state.view === 'schedule' ? 'Asignadas' : 'Horas'}</th>${days.map((day, index) => `<th class="day ${localDateValue(dateForDay(index)) === today ? 'today' : ''}"><span>${day}</span><small>${dayDateLabel(index)} · 09:00–${closingDisplay(day)}</small></th>`).join('')}<th class="overnight">Cierre hasta 01:00</th><th class="remove"></th></tr></thead><tbody>${body}</tbody>`;
+  table.innerHTML = `<thead><tr><th>Trabajador y cargo</th><th class="hours">${state.view === 'schedule' ? 'Asignadas' : 'Horas'}</th>${days.map((day, index) => `<th class="day ${localDateValue(dateForDay(index)) === today ? 'today' : ''}"><span>${day}</span><small>${dayDateLabel(index)} | 09:00 a ${closingDisplay(day)}</small></th>`).join('')}<th class="overnight">Cierre hasta 01:00</th><th class="remove"></th></tr></thead><tbody>${body}</tbody>`;
   table.querySelectorAll('[data-field]').forEach((input) => input.addEventListener('change', onCellChange));
   table.querySelectorAll('[data-action="availability-start"]').forEach((select) => select.addEventListener('change', onAvailabilityStartChange));
   table.querySelectorAll('[data-action="availability-end"]').forEach((select) => select.addEventListener('change', onAvailabilityEndChange));
   table.querySelectorAll('[data-action="shift"]').forEach((select) => select.addEventListener('change', onShiftChange));
   table.querySelectorAll('[data-action="copy-shift"]').forEach((button) => button.addEventListener('click', copyShift));
   table.querySelectorAll('[data-action="paste-shift"]').forEach((button) => button.addEventListener('click', pasteShift));
+  table.querySelectorAll('[data-action="toggle-mobile-worker"]').forEach((button) => button.addEventListener('click', toggleMobileWorker));
   table.querySelectorAll('[data-action="overnight"]').forEach((button) => button.addEventListener('click', toggleOvernight));
   table.querySelectorAll('[data-action="delete"]').forEach((button) => button.addEventListener('click', deleteEmployee));
 }
 
 function rowHtml(employee, index) {
   const assigned = assignedHours(employee.id);
+  const mobileExpanded = mobileExpandedEmployees.has(employee.id);
   const hoursDifference = assigned - Number(employee.hours || 0);
   const hoursClass = Math.abs(hoursDifference) < 0.01 ? 'hours-ok' : 'hours-warning';
   const dayCells = days.map((day) => {
@@ -504,25 +508,36 @@ function rowHtml(employee, index) {
     const recommended = state.recommendations?.[employee.id]?.[day] || 'LIBRE';
     const options = shiftOptions(employee, day, [shiftHours(current), shiftHours(recommended)]);
     if (current !== 'LIBRE' && !options.some((option) => option.value === current)) {
-      options.splice(1, 0, { value: current, hours: shiftHours(current), label: `${shiftDescription(current)} · guardado` });
+      options.splice(1, 0, { value: current, hours: shiftHours(current), label: `${shiftDescription(current)} | guardado` });
     }
     const currentWindow = parseWindow(current);
     const isRecommended = current !== 'LIBRE' && current === recommended;
     const kind = currentWindow ? currentWindow.start === openingMinutes ? 'opening' : currentWindow.end === closingMinutes(day) ? 'closing' : 'middle' : 'free';
     const details = currentWindow
-      ? `<div class="shift-details ${isRecommended ? 'recommended' : ''} ${kind}"><div class="shift-details-head"><span>${isRecommended ? '★ Recomendado' : kind === 'opening' ? 'Apertura' : kind === 'closing' ? 'Cierre' : 'Turno elegido'}</span><strong>${formatNumber(shiftHours(current))} h trabajo</strong></div><div class="shift-times"><span><small>Inicio</small><b>${formatTime(currentWindow.start)}</b></span><i>→</i><span><small>Fin</small><b>${formatTime(currentWindow.end)}</b></span></div><div class="meal-note">＋ 1 h de colación incluida</div></div>`
+      ? `<div class="shift-details ${isRecommended ? 'recommended' : ''} ${kind}"><div class="shift-details-head"><span>${isRecommended ? 'Recomendado' : kind === 'opening' ? 'Apertura' : kind === 'closing' ? 'Cierre' : 'Turno elegido'}</span><strong>${formatNumber(shiftHours(current))} h trabajo</strong></div><div class="shift-times"><span><small>Inicio</small><b>${formatTime(currentWindow.start)}</b></span><i>a</i><span><small>Fin</small><b>${formatTime(currentWindow.end)}</b></span></div><div class="meal-note">Incluye 1 h de colación</div></div>`
       : '<div class="shift-free">Sin turno asignado</div>';
     const canPaste = Boolean(shiftClipboard && shiftOptions(employee, day, [shiftClipboard.hours]).some((option) => option.value === shiftClipboard.value));
-    return `<td class="day-cell" data-label="${day}"><div class="shift-cell"><select class="shift-select ${current === 'LIBRE' ? 'off' : ''}" data-id="${employee.id}" data-day="${day}" data-action="shift" aria-label="Turno de ${escapeHtml(employee.name)} para ${day}">${options.map((option) => { const label = option.value !== 'LIBRE' && option.value === recommended ? `★ Recomendada · ${option.label}` : option.label; return `<option value="${escapeHtml(option.value)}" ${option.value === current ? 'selected' : ''}>${escapeHtml(label)}</option>`; }).join('')}</select>${details}<div class="shift-tools"><button type="button" data-action="copy-shift" data-id="${employee.id}" data-day="${day}" ${current === 'LIBRE' ? 'disabled' : ''}>Copiar</button><button type="button" data-action="paste-shift" data-id="${employee.id}" data-day="${day}" ${canPaste ? '' : 'disabled'}>Pegar</button></div></div></td>`;
+    return `<td class="day-cell" data-label="${day}"><div class="shift-cell"><select class="shift-select ${current === 'LIBRE' ? 'off' : ''}" data-id="${employee.id}" data-day="${day}" data-action="shift" aria-label="Turno de ${escapeHtml(employee.name)} para ${day}">${options.map((option) => { const label = option.value !== 'LIBRE' && option.value === recommended ? `Recomendada | ${option.label}` : option.label; return `<option value="${escapeHtml(option.value)}" ${option.value === current ? 'selected' : ''}>${escapeHtml(label)}</option>`; }).join('')}</select>${details}<div class="shift-tools"><button type="button" data-action="copy-shift" data-id="${employee.id}" data-day="${day}" ${current === 'LIBRE' ? 'disabled' : ''}>Copiar</button><button type="button" data-action="paste-shift" data-id="${employee.id}" data-day="${day}" ${canPaste ? '' : 'disabled'}>Pegar</button></div></div></td>`;
   }).join('');
   const hoursCell = state.view === 'schedule'
     ? `<div class="hours-summary ${hoursClass}"><strong>${formatNumber(assigned)}</strong><span>/ ${formatNumber(employee.hours)} h</span><small>${patternSummary(employee)}</small></div>`
-    : `<div class="hours-editor"><input class="hours-input" type="number" min="1" max="60" data-id="${employee.id}" data-field="hours" value="${employee.hours}" /><small>${patternSummary(employee)}</small></div>`;
-  return `<tr><td class="person" data-label="Trabajador"><input class="person-input" data-id="${employee.id}" data-field="name" value="${escapeHtml(employee.name)}" /><input class="person-input rut" data-id="${employee.id}" data-field="rut" value="${escapeHtml(employee.rut)}" placeholder="RUT" /><select class="person-input role" data-id="${employee.id}" data-field="role"><option value="Crew" ${employee.role === 'Crew' ? 'selected' : ''}>Crew</option><option value="Crew-Master" ${employee.role === 'Crew-Master' ? 'selected' : ''}>Crew-Master</option></select></td><td class="hours-cell" data-label="${state.view === 'schedule' ? 'Asignadas' : 'Horas'}">${hoursCell}</td>${dayCells}<td class="overnight-cell" data-label="Cierre hasta 01:00"><button class="toggle ${employee.overnight ? 'on' : ''}" data-id="${employee.id}" data-action="overnight" aria-label="${escapeHtml(employee.name)}: puede tener cierre hasta la 01:00, ${employee.overnight ? 'sí' : 'no'}">${employee.overnight ? 'SÍ' : 'NO'}</button></td><td class="remove-cell" data-label="Eliminar"><button class="delete" title="Eliminar trabajador" data-id="${employee.id}" data-action="delete">×</button></td></tr>`;
+    : `<div class="hours-editor"><input class="hours-input" type="number" min="1" max="60" data-id="${employee.id}" data-field="hours" value="${employee.hours}" aria-label="Horas semanales de ${escapeHtml(employee.name)}" /><small>${patternSummary(employee)}</small></div>`;
+  return `<tr class="${mobileExpanded ? 'mobile-expanded' : ''}"><td class="person" data-label="Trabajador"><input class="person-input" data-id="${employee.id}" data-field="name" value="${escapeHtml(employee.name)}" aria-label="Nombre del trabajador" /><input class="person-input rut" data-id="${employee.id}" data-field="rut" value="${escapeHtml(employee.rut)}" placeholder="RUT" aria-label="RUT de ${escapeHtml(employee.name)}" /><select class="person-input role" data-id="${employee.id}" data-field="role" aria-label="Cargo de ${escapeHtml(employee.name)}"><option value="Crew" ${employee.role === 'Crew' ? 'selected' : ''}>Crew</option><option value="Crew-Master" ${employee.role === 'Crew-Master' ? 'selected' : ''}>Crew-Master</option></select><button type="button" class="mobile-worker-toggle" data-id="${employee.id}" data-action="toggle-mobile-worker" aria-expanded="${mobileExpanded}">${mobileExpanded ? 'Ocultar semana' : 'Ver semana'}</button></td><td class="hours-cell" data-label="${state.view === 'schedule' ? 'Asignadas' : 'Horas'}">${hoursCell}</td>${dayCells}<td class="overnight-cell" data-label="Cierre hasta 01:00"><button class="toggle ${employee.overnight ? 'on' : ''}" data-id="${employee.id}" data-action="overnight" aria-label="${escapeHtml(employee.name)}: puede tener cierre hasta la 01:00, ${employee.overnight ? 'sí' : 'no'}">${employee.overnight ? 'SÍ' : 'NO'}</button></td><td class="remove-cell" data-label="Eliminar"><button class="delete" title="Eliminar trabajador" aria-label="Eliminar a ${escapeHtml(employee.name)}" data-id="${employee.id}" data-action="delete"></button></td></tr>`;
+}
+
+function toggleMobileWorker(event) {
+  const id = Number(event.currentTarget.dataset.id);
+  const expanded = mobileExpandedEmployees.has(id);
+  if (expanded) mobileExpandedEmployees.delete(id);
+  else mobileExpandedEmployees.add(id);
+  const row = event.currentTarget.closest('tr');
+  row.classList.toggle('mobile-expanded', !expanded);
+  event.currentTarget.setAttribute('aria-expanded', String(!expanded));
+  event.currentTarget.textContent = expanded ? 'Ver semana' : 'Ocultar semana';
 }
 
 function renderAvailabilityForm() {
-  $('#availability-form').innerHTML = days.map((day) => `<div class="availability-row" data-form-day="${day}"><div class="day-close"><strong>${day}</strong><small>09:00–${closingDisplay(day)}</small></div><select class="availability-mode" aria-label="Disponibilidad de ${day}"><option value="complete">Completa</option><option value="range">Rango horario</option><option value="unavailable">No disponible</option></select><div class="time-fields" hidden><label>Desde <select class="start-time" aria-label="Hora de inicio de ${day}">${startTimeOptionsHtml(day, '09:00')}</select></label><label>Hasta <select class="end-time" aria-label="Hora de término de ${day}">${endTimeOptionsHtml(day, '09:00', '18:00')}</select></label></div></div>`).join('');
+  $('#availability-form').innerHTML = days.map((day) => `<div class="availability-row" data-form-day="${day}"><div class="day-close"><strong>${day}</strong><small>09:00 a ${closingDisplay(day)}</small></div><select class="availability-mode" aria-label="Disponibilidad de ${day}"><option value="complete">Completa</option><option value="range">Rango horario</option><option value="unavailable">No disponible</option></select><div class="time-fields" hidden><label>Desde <select class="start-time" aria-label="Hora de inicio de ${day}">${startTimeOptionsHtml(day, '09:00')}</select></label><label>Hasta <select class="end-time" aria-label="Hora de término de ${day}">${endTimeOptionsHtml(day, '09:00', '18:00')}</select></label></div></div>`).join('');
   $$('.availability-mode').forEach((select) => select.addEventListener('change', () => {
     const row = select.closest('.availability-row');
     row.querySelector('.time-fields').hidden = select.value !== 'range';
@@ -772,7 +787,7 @@ function exportExcel() {
   const headers = ['Trabajador', 'RUT', 'Cargo', 'Horas contratadas', ...days, 'Horas asignadas'];
   const rows = state.employees.map((employee) => [employee.name, employee.rut, normalizeEmployeeRole(employee.role), employee.hours, ...days.map((day) => state.schedule[employee.id]?.[day] || 'LIBRE'), assignedHours(employee.id)]);
   const table = `<table><tr>${headers.map((cell) => `<th>${escapeHtml(cell)}</th>`).join('')}</tr>${rows.map((row) => `<tr>${row.map((cell) => `<td>${escapeHtml(cell)}</td>`).join('')}</tr>`).join('')}</table>`;
-  const html = `<!doctype html><html><head><meta charset="utf-8"><style>table{border-collapse:collapse;font-family:Arial}th{background:#195c3b;color:#fff}th,td{border:1px solid #bbb;padding:6px}td{mso-number-format:"\\@"}</style></head><body><h2>TurnoFácil · ${escapeHtml(weekLabel())}</h2>${table}</body></html>`;
+  const html = `<!doctype html><html><head><meta charset="utf-8"><style>table{border-collapse:collapse;font-family:Aptos,"Segoe UI",sans-serif}th{background:#195c3b;color:#fff}th,td{border:1px solid #bbb;padding:6px}td{mso-number-format:"\\@"}</style></head><body><h2>TurnoFácil | ${escapeHtml(weekLabel())}</h2>${table}</body></html>`;
   downloadBlob(`\ufeff${html}`, 'application/vnd.ms-excel;charset=utf-8', `horario-${state.week}.xls`);
   toast('Archivo para Excel descargado.');
 }
@@ -851,7 +866,7 @@ function renderIndividualReport() {
     const shift = state.schedule?.[employee.id]?.[day] || 'LIBRE';
     return `<tr><td><strong>${day}</strong><br><small>${dayDateLabel(index)}</small></td><td>${shift === 'LIBRE' ? 'Libre' : escapeHtml(shiftDescription(shift))}</td><td>${formatNumber(shiftHours(shift))} h</td></tr>`;
   }).join('');
-  $('#individual-report-content').innerHTML = `<div class="individual-summary"><div><span>Cargo</span><strong>${escapeHtml(normalizeEmployeeRole(employee.role))}</strong></div><div><span>Contrato</span><strong>${formatNumber(employee.hours)} h</strong></div><div><span>Esta semana</span><strong>${formatNumber(assignedHours(employee.id))} h</strong></div><div><span>Historial</span><strong>${formatNumber(stats.hours)} h · ${stats.closings} cierres</strong></div></div><table class="individual-schedule"><thead><tr><th>Día</th><th>Turno</th><th>Trabajo</th></tr></thead><tbody>${rows}</tbody></table>`;
+  $('#individual-report-content').innerHTML = `<div class="individual-summary"><div><span>Cargo</span><strong>${escapeHtml(normalizeEmployeeRole(employee.role))}</strong></div><div><span>Contrato</span><strong>${formatNumber(employee.hours)} h</strong></div><div><span>Esta semana</span><strong>${formatNumber(assignedHours(employee.id))} h</strong></div><div><span>Historial</span><strong>${formatNumber(stats.hours)} h | ${stats.closings} cierres</strong></div></div><table class="individual-schedule"><thead><tr><th>Día</th><th>Turno</th><th>Trabajo</th></tr></thead><tbody>${rows}</tbody></table>`;
 }
 
 function openIndividualReport() {
@@ -859,7 +874,7 @@ function openIndividualReport() {
     toast('Agrega un trabajador antes de abrir la vista individual.');
     return;
   }
-  $('#individual-employee').innerHTML = state.employees.map((employee) => `<option value="${employee.id}">${escapeHtml(employee.name)} · ${escapeHtml(normalizeEmployeeRole(employee.role))}</option>`).join('');
+  $('#individual-employee').innerHTML = state.employees.map((employee) => `<option value="${employee.id}">${escapeHtml(employee.name)} | ${escapeHtml(normalizeEmployeeRole(employee.role))}</option>`).join('');
   renderIndividualReport();
   $('#individual-dialog').showModal();
 }
@@ -872,7 +887,7 @@ function printIndividualReport() {
     toast('El navegador bloqueó la ventana de impresión.');
     return;
   }
-  popup.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Horario de ${escapeHtml(employee.name)}</title><style>body{font-family:Arial;padding:28px;color:#172019}h1{margin-bottom:4px}p{color:#68736b}.individual-summary{display:grid;grid-template-columns:repeat(4,1fr);border:1px solid #ddd}.individual-summary div{padding:10px}.individual-summary span{display:block;font-size:9px;text-transform:uppercase;color:#68736b}.individual-summary strong{display:block;margin-top:4px}table{width:100%;border-collapse:collapse;margin-top:16px}th{background:#195c3b;color:white}th,td{border:1px solid #ccc;padding:8px;text-align:left}</style></head><body><h1>${escapeHtml(employee.name)}</h1><p>${escapeHtml(employee.rut)} · ${escapeHtml(normalizeEmployeeRole(employee.role))} · Semana ${escapeHtml(weekLabel())}</p>${$('#individual-report-content').innerHTML}</body></html>`);
+  popup.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Horario de ${escapeHtml(employee.name)}</title><style>body{font-family:Aptos,"Segoe UI",sans-serif;padding:28px;color:#172019}h1{margin-bottom:4px}p{color:#68736b}.individual-summary{display:grid;grid-template-columns:repeat(4,1fr);border:1px solid #ddd}.individual-summary div{padding:10px}.individual-summary span{display:block;font-size:9px;text-transform:uppercase;color:#68736b}.individual-summary strong{display:block;margin-top:4px}table{width:100%;border-collapse:collapse;margin-top:16px}th{background:#195c3b;color:white}th,td{border:1px solid #ccc;padding:8px;text-align:left}</style></head><body><h1>${escapeHtml(employee.name)}</h1><p>${escapeHtml(employee.rut)} | ${escapeHtml(normalizeEmployeeRole(employee.role))} | Semana ${escapeHtml(weekLabel())}</p>${$('#individual-report-content').innerHTML}</body></html>`);
   popup.document.close();
   popup.focus();
   setTimeout(() => popup.print(), 250);
@@ -894,13 +909,21 @@ function escapeHtml(value = '') {
 }
 
 function render() {
+  if (!mobileExpansionInitialized && typeof window !== 'undefined' && window.matchMedia('(max-width: 900px)').matches && state.employees[0]) {
+    mobileExpandedEmployees.add(state.employees[0].id);
+    mobileExpansionInitialized = true;
+  }
   $('#week').value = state.week;
-  $('#week-title').textContent = `Horario del ${weekLabel()}`;
+  $('#week-title').textContent = `Semana del ${weekLabel()}`;
   $('#row-count').textContent = `${state.employees.length} trabajadores`;
   $('#view-hint').innerHTML = state.view === 'availability'
     ? 'Define la disponibilidad real; el generador nunca asignará un turno fuera de estos rangos.'
     : 'Puedes cambiar, copiar y pegar turnos válidos. Cada turno incluye <b>1 hora de colación</b>.';
-  $$('.tab').forEach((tab) => tab.classList.toggle('active', tab.dataset.view === state.view));
+  $$('.tab').forEach((tab) => {
+    const active = tab.dataset.view === state.view;
+    tab.classList.toggle('active', active);
+    tab.setAttribute('aria-selected', String(active));
+  });
   renderMetrics();
   renderAlerts();
   renderTable();

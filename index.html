@@ -10,36 +10,41 @@
     <meta property="og:image" content="https://brian5512.github.io/TurnoFacil/assets/og.png" />
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://brian5512.github.io/TurnoFacil/" />
-    <link rel="stylesheet" href="css/styles.css?v=4" />
+    <link rel="stylesheet" href="css/styles.css?v=6" />
   </head>
   <body>
     <header class="topbar">
-      <div class="brand"><div class="brand-icon">▦</div><div><strong>TurnoFácil</strong><small>Planificador semanal</small></div></div>
-      <div id="save-state" class="save-state">Guardado automático</div>
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">TF</div>
+        <div class="brand-copy"><strong>TurnoFácil</strong><small>Planificación de turnos</small></div>
+      </div>
+      <div class="save-indicator"><span class="save-dot" aria-hidden="true"></span><span id="save-state" class="save-state">Guardado automático</span></div>
     </header>
     <main class="workspace">
-      <section class="intro">
-        <div><div class="eyebrow">Semana de trabajo</div><h1 id="week-title">Horario semanal</h1><p>Planifica según la disponibilidad y las horas contratadas.</p></div>
-        <div class="actions">
+      <section class="command-center">
+        <div class="intro">
+          <div class="intro-copy"><h1 id="week-title">Horario semanal</h1><p>Disponibilidad, recomendaciones y horas contratadas en una sola vista.</p></div>
+          <div class="actions">
           <div class="week-navigation" aria-label="Navegación semanal">
-            <button id="previous-week" class="icon-button" type="button" aria-label="Semana anterior">‹</button>
+            <button id="previous-week" class="icon-button previous" type="button" aria-label="Semana anterior"><span class="sr-only">Semana anterior</span></button>
             <input id="week" type="date" aria-label="Semana seleccionada" />
-            <button id="next-week" class="icon-button" type="button" aria-label="Semana siguiente">›</button>
+            <button id="next-week" class="icon-button next" type="button" aria-label="Semana siguiente"><span class="sr-only">Semana siguiente</span></button>
             <button id="current-week" class="button secondary compact" type="button">Hoy</button>
           </div>
-          <button id="generate" class="button primary">✦ Generar horario</button>
+          <button id="generate" class="button primary">Generar horario</button>
+          </div>
         </div>
-      </section>
-      <section class="utility-bar" aria-label="Herramientas del horario">
-        <div class="utility-group"><button id="copy-previous" class="button secondary">Copiar semana anterior</button><button id="export-backup" class="button secondary">Respaldar datos</button><button id="import-backup" class="button secondary">Importar respaldo</button><input id="backup-file" type="file" accept="application/json,.json" hidden /></div>
-        <div class="utility-group"><button id="individual-report" class="button secondary">Vista por trabajador</button><button id="export" class="button secondary">Descargar Excel</button><button id="print" class="button secondary">Guardar PDF / imprimir</button></div>
+        <div class="utility-bar" aria-label="Herramientas del horario">
+          <div class="utility-group"><span class="utility-label">Semana</span><button id="copy-previous" class="text-button">Copiar anterior</button><button id="individual-report" class="text-button">Vista individual</button></div>
+          <div class="utility-group"><span class="utility-label">Archivos</span><button id="export-backup" class="text-button">Respaldar</button><button id="import-backup" class="text-button">Importar</button><input id="backup-file" type="file" accept="application/json,.json" hidden /><button id="export" class="text-button">Excel</button><button id="print" class="text-button">PDF e imprimir</button></div>
+        </div>
       </section>
       <section id="metrics" class="metrics"></section>
       <section id="alerts-panel" class="alerts-panel" aria-live="polite"></section>
       <section class="panel">
         <div class="panel-toolbar">
-          <div class="tabs"><button data-view="availability" class="tab active">Disponibilidades</button><button data-view="schedule" class="tab">Horario generado</button></div>
-          <div class="panel-actions"><button id="open-add" class="button secondary">＋ Agregar trabajador</button></div>
+          <div><div class="tabs" role="tablist" aria-label="Vista del planificador"><button data-view="availability" class="tab active" role="tab" aria-selected="true" aria-controls="schedule-table">Disponibilidades</button><button data-view="schedule" class="tab" role="tab" aria-selected="false" aria-controls="schedule-table">Horario generado</button></div></div>
+          <div class="panel-actions"><button id="open-add" class="button add-worker">Agregar trabajador</button></div>
         </div>
         <div class="table-wrap"><table id="schedule-table"></table></div>
         <div class="hint"><span id="view-hint">Los turnos comienzan desde las <b>09:00</b> y ofrecen alternativas cada 30 minutos hasta el cierre máximo permitido.</span><span id="row-count"></span></div>
@@ -48,8 +53,8 @@
     <dialog id="employee-dialog" class="employee-dialog" aria-labelledby="employee-dialog-title">
       <form id="employee-form" method="dialog">
         <div class="dialog-head">
-          <div><div class="eyebrow">Nuevo integrante</div><h2 id="employee-dialog-title">Agregar trabajador</h2><p>Registra sus datos y disponibilidad semanal.</p></div>
-          <button type="button" id="close-add" class="dialog-close" aria-label="Cerrar">×</button>
+          <div><h2 id="employee-dialog-title">Agregar trabajador</h2><p>Registra sus datos y disponibilidad semanal.</p></div>
+          <button type="button" id="close-add" class="dialog-close" aria-label="Cerrar"><span class="sr-only">Cerrar</span></button>
         </div>
         <div class="form-grid employee-fields">
           <label class="field"><span>Nombre completo</span><input id="employee-name" name="name" autocomplete="off" required placeholder="Ej.: Trabajador 3" /></label>
@@ -66,8 +71,8 @@
     <dialog id="individual-dialog" class="employee-dialog individual-dialog" aria-labelledby="individual-dialog-title">
       <form method="dialog">
         <div class="dialog-head">
-          <div><div class="eyebrow">Resumen personal</div><h2 id="individual-dialog-title">Horario por trabajador</h2><p>Consulta su semana y las horas conservadas en el historial.</p></div>
-          <button type="button" id="close-individual" class="dialog-close" aria-label="Cerrar">×</button>
+          <div><h2 id="individual-dialog-title">Horario por trabajador</h2><p>Consulta su semana y las horas conservadas en el historial.</p></div>
+          <button type="button" id="close-individual" class="dialog-close" aria-label="Cerrar"><span class="sr-only">Cerrar</span></button>
         </div>
         <label class="field report-worker-field"><span>Trabajador</span><select id="individual-employee"></select></label>
         <div id="individual-report-content" class="individual-report-content"></div>
@@ -75,6 +80,6 @@
       </form>
     </dialog>
     <div id="toast" role="status"></div>
-    <script src="js/app.js?v=4"></script>
+    <script src="js/app.js?v=6"></script>
   </body>
 </html>
