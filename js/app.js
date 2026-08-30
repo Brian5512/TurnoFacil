@@ -5,7 +5,7 @@ const seed = [
   { id: 2, name: 'Trabajador 2', rut: '', hours: 20, overnight: false, availability: complete() },
 ];
 
-let state = { employees: seed, week: getMonday(), view: 'availability', schedule: {} };
+let state = { employees: seed, week: getMonday(), view: 'availability', schedule: {}, recommendations: {} };
 let saveTimer;
 
 const $ = (selector) => document.querySelector(selector);
@@ -81,32 +81,39 @@ function makeShift(start, duration) {
   return `${formatTime(start)} - ${formatTime(start + duration * 60)}`;
 }
 
+function shiftDescription(value, note = '') {
+  const window = parseWindow(value);
+  if (!window) return value;
+  const suffix = note ? ` · ${note}` : '';
+  return `${formatTime(window.start)} → ${formatTime(window.end)} · ${formatNumber(window.capacity)} h${suffix}`;
+}
+
 function shiftOptions(employee, day) {
   const availability = String(employee.availability[day] || '').trim().toUpperCase();
   const options = [{ value: 'LIBRE', hours: 0, label: 'Libre' }];
   if (!availability || availability === 'X') return options;
 
   const collected = new Map();
-  const add = (value, label = value) => {
-    if (value !== 'LIBRE' && !collected.has(value)) collected.set(value, { value, hours: shiftHours(value), label });
+  const add = (value, note = '') => {
+    if (value !== 'LIBRE' && !collected.has(value)) collected.set(value, { value, hours: shiftHours(value), label: shiftDescription(value, note) });
   };
 
   const window = parseWindow(availability);
   if (window) {
     const durations = [4, 6, 8].filter((duration) => duration <= window.capacity);
-    if (!durations.length) add(`${formatTime(window.start)} - ${formatTime(window.end)}`, `Todo el rango · ${window.capacity.toFixed(1)} h`);
+    if (!durations.length) add(`${formatTime(window.start)} - ${formatTime(window.end)}`, 'todo el rango');
     durations.forEach((duration) => {
-      add(makeShift(window.start, duration), `${duration} h · desde apertura`);
+      add(makeShift(window.start, duration), 'desde apertura');
       const closingStart = window.end - duration * 60;
-      add(makeShift(closingStart, duration), `${duration} h · hasta cierre`);
+      add(makeShift(closingStart, duration), 'hasta cierre');
     });
     if (window.capacity <= 10 && !durations.some((duration) => Math.abs(duration - window.capacity) < 0.01)) {
-      add(`${formatTime(window.start)} - ${formatTime(window.end)}`, `Rango completo · ${window.capacity.toFixed(1)} h`);
+      add(`${formatTime(window.start)} - ${formatTime(window.end)}`, 'rango completo');
     }
   } else {
     const starts = day === 'Sábado' || day === 'Domingo' ? [10, 12, 14] : [9, 10, 12, 14];
-    [4, 6, 8].forEach((duration) => starts.forEach((start) => add(makeShift(start * 60, duration), `${duration} h · inicia ${formatTime(start * 60)}`)));
-    if (employee.overnight) add('17:00 - 01:00', '8 h · trasnoche');
+    [4, 6, 8].forEach((duration) => starts.forEach((start) => add(makeShift(start * 60, duration))));
+    if (employee.overnight) add('17:00 - 01:00', 'trasnoche');
   }
   return [...options, ...collected.values()];
 }
@@ -122,23 +129,27 @@ function bestShift(employee, day, remaining) {
 
 function generateSchedule() {
   const schedule = {};
+  const recommendations = {};
   for (const employee of state.employees) {
     let remaining = Number(employee.hours || 0);
     schedule[employee.id] = Object.fromEntries(days.map((day) => [day, 'LIBRE']));
+    recommendations[employee.id] = Object.fromEntries(days.map((day) => [day, 'LIBRE']));
     const availableDays = days.filter((day) => shiftOptions(employee, day).length > 1).slice(0, 5);
     for (const day of availableDays) {
       if (remaining <= 0.01) break;
       const option = bestShift(employee, day, remaining);
       if (!option) continue;
       schedule[employee.id][day] = option.value;
+      recommendations[employee.id][day] = option.value;
       remaining = Math.max(0, remaining - option.hours);
     }
   }
   state.schedule = schedule;
+  state.recommendations = recommendations;
   state.view = 'schedule';
   save();
   render();
-  toast('Propuesta generada. Puedes cambiar cada turno desde sus opciones.');
+  toast('Recomendaciones generadas según disponibilidad y horas semanales.');
 }
 
 function weekLabel() {
@@ -199,10 +210,16 @@ function rowHtml(employee, index) {
     }
     const current = state.schedule[employee.id]?.[day] || 'LIBRE';
     const options = shiftOptions(employee, day);
+    const recommended = state.recommendations?.[employee.id]?.[day] || 'LIBRE';
     if (current !== 'LIBRE' && !options.some((option) => option.value === current)) {
-      options.splice(1, 0, { value: current, hours: shiftHours(current), label: `${current} · guardado` });
+      options.splice(1, 0, { value: current, hours: shiftHours(current), label: `${shiftDescription(current)} · guardado` });
     }
-    return `<td><select class="shift-select ${current === 'LIBRE' ? 'off' : ''}" data-id="${employee.id}" data-day="${day}" data-action="shift" aria-label="Turno de ${escapeHtml(employee.name)} para ${day}">${options.map((option) => `<option value="${escapeHtml(option.value)}" ${option.value === current ? 'selected' : ''}>${escapeHtml(option.label)}</option>`).join('')}</select></td>`;
+    const currentWindow = parseWindow(current);
+    const isRecommended = current !== 'LIBRE' && current === recommended;
+    const details = currentWindow
+      ? `<div class="shift-details ${isRecommended ? 'recommended' : ''}"><div class="shift-details-head"><span>${isRecommended ? '★ Recomendado' : 'Turno elegido'}</span><strong>${formatNumber(currentWindow.capacity)} h</strong></div><div class="shift-times"><span><small>Inicio</small><b>${formatTime(currentWindow.start)}</b></span><i>→</i><span><small>Fin</small><b>${formatTime(currentWindow.end)}</b></span></div></div>`
+      : '<div class="shift-free">Sin turno asignado</div>';
+    return `<td><div class="shift-cell"><select class="shift-select ${current === 'LIBRE' ? 'off' : ''}" data-id="${employee.id}" data-day="${day}" data-action="shift" aria-label="Turno de ${escapeHtml(employee.name)} para ${day}">${options.map((option) => { const label = option.value !== 'LIBRE' && option.value === recommended ? `★ Recomendada · ${option.label}` : option.label; return `<option value="${escapeHtml(option.value)}" ${option.value === current ? 'selected' : ''}>${escapeHtml(label)}</option>`; }).join('')}</select>${details}</div></td>`;
   }).join('');
   const hoursCell = state.view === 'schedule'
     ? `<div class="hours-summary ${hoursClass}"><strong>${formatNumber(assigned)}</strong><span>/ ${formatNumber(employee.hours)} h</span></div>`
@@ -253,6 +270,7 @@ function addEmployeeFromForm(event) {
     availability,
   });
   state.schedule = {};
+  state.recommendations = {};
   save();
   $('#employee-dialog').close();
   render();
@@ -276,6 +294,7 @@ function onCellChange(event) {
   else if (field === 'rut') employee.rut = formatRut(event.target.value);
   else employee[field] = event.target.value;
   state.schedule = {};
+  state.recommendations = {};
   save();
   render();
 }
@@ -296,6 +315,7 @@ function onAvailabilityStartChange(event) {
     employee.availability[day] = `${start} - ${end}`;
   }
   state.schedule = {};
+  state.recommendations = {};
   save();
   render();
 }
@@ -312,6 +332,7 @@ function onAvailabilityEndChange(event) {
   }
   employee.availability[day] = `${current.start} - ${event.target.value}`;
   state.schedule = {};
+  state.recommendations = {};
   save();
   render();
 }
@@ -329,6 +350,7 @@ function toggleOvernight(event) {
   if (!employee) return;
   employee.overnight = !employee.overnight;
   state.schedule = {};
+  state.recommendations = {};
   save();
   render();
 }
@@ -337,6 +359,7 @@ function deleteEmployee(event) {
   const id = Number(event.currentTarget.dataset.id);
   state.employees = state.employees.filter((item) => item.id !== id);
   delete state.schedule[id];
+  delete state.recommendations[id];
   save();
   render();
 }
@@ -379,7 +402,7 @@ function render() {
   renderTable();
 }
 
-$('#week').addEventListener('change', (event) => { state.week = event.target.value; save(); render(); });
+$('#week').addEventListener('change', (event) => { state.week = event.target.value; state.schedule = {}; state.recommendations = {}; save(); render(); });
 $('#generate').addEventListener('click', generateSchedule);
 $('#open-add').addEventListener('click', openEmployeeDialog);
 $('#close-add').addEventListener('click', () => $('#employee-dialog').close());

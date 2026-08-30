@@ -20,7 +20,7 @@ No requiere instalación ni conexión a Internet. Los datos que escribas se guar
 ## Funciones
 
 - Agregar trabajadores con nombre, RUT, horas semanales y disponibilidad diaria mediante listas de hora “Desde” y “Hasta”.
-- Generar una propuesta de horario compatible con la disponibilidad.
+- Generar recomendaciones compatibles con la disponibilidad y las horas semanales, mostrando inicio y fin de cada turno.
 - Elegir manualmente entre opciones de turno válidas para cada día.
 - Comparar horas asignadas con horas contratadas.
 - Imprimir o descargar el horario como CSV.
