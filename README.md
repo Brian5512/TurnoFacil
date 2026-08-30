@@ -25,6 +25,7 @@ No requiere instalación ni conexión a Internet. Los datos que escribas se guar
 - Respetar los cierres operacionales: 23:00 de lunes a jueves y domingo; 01:00 del día siguiente viernes y sábado.
 - Aplicar jornadas por contrato: 30 horas en 5x2 (5 días de 6 horas), 20 horas en 4x3 (4 días de 5 horas) y 16 horas solamente sábado y domingo (2 días de 8 horas).
 - Agregar una hora de colación no trabajada a todos los turnos y ofrecer alternativas de inicio cada 30 minutos dentro de la disponibilidad.
+- Distribuir dinámicamente las horas contratadas entre los días realmente disponibles, respetando el máximo de días del patrón y completando las horas cuando la capacidad lo permite.
 - Elegir manualmente entre opciones de turno válidas para cada día.
 - Comparar horas asignadas con horas contratadas.
 - Imprimir o descargar el horario como CSV.

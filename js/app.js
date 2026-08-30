@@ -166,15 +166,36 @@ function patternSummary(employee) {
   const pattern = workPattern(employee);
   if (!pattern) return 'Distribución flexible';
   if (pattern.weekendOnly) return 'Solo sábado y domingo · 8 h + 1 h colación';
-  return `${pattern.code} · ${pattern.dailyHours} h + 1 h colación`;
+  return `${pattern.code} · horas ajustadas a disponibilidad`;
 }
 
-function shiftOptions(employee, day) {
+function workWindow(employee, day) {
   const availability = String(employee.availability[day] || '').trim().toUpperCase();
-  const options = [{ value: 'LIBRE', hours: 0, label: 'Libre' }];
   const pattern = workPattern(employee);
-  if (pattern && !pattern.allowedDays.includes(day)) return options;
-  if (!availability || availability === 'X') return options;
+  if ((pattern && !pattern.allowedDays.includes(day)) || !availability || availability === 'X') return null;
+  const employeeClosing = employee.overnight ? closingMinutes(day) : Math.min(closingMinutes(day), 1440);
+  const rawWindow = parseWindow(availability);
+  if (rawWindow) {
+    const end = Math.min(rawWindow.end, employeeClosing);
+    if (rawWindow.start >= end) return null;
+    return { start: rawWindow.start, end, capacity: (end - rawWindow.start) / 60, ranged: true };
+  }
+  if (availability !== 'COMPLETA') return null;
+  const start = (day === 'Sábado' || day === 'Domingo' ? 10 : 9) * 60;
+  if (start >= employeeClosing) return null;
+  return { start, end: employeeClosing, capacity: (employeeClosing - start) / 60, ranged: false };
+}
+
+function dayWorkCapacity(employee, day) {
+  const capacity = (workWindow(employee, day)?.capacity ?? 0) - mealBreakHours;
+  return Math.max(0, Math.floor(capacity * 2) / 2);
+}
+
+function shiftOptions(employee, day, extraDurations = []) {
+  const options = [{ value: 'LIBRE', hours: 0, label: 'Libre' }];
+  const window = workWindow(employee, day);
+  if (!window) return options;
+  const pattern = workPattern(employee);
 
   const collected = new Map();
   const add = (value, note = '') => {
@@ -182,40 +203,59 @@ function shiftOptions(employee, day) {
     if (value !== 'LIBRE' && hours > 0 && !collected.has(value)) collected.set(value, { value, hours, label: shiftDescription(value, note) });
   };
 
-  const rawWindow = parseWindow(availability);
-  const employeeClosing = employee.overnight ? closingMinutes(day) : Math.min(closingMinutes(day), 1440);
-  const window = rawWindow && rawWindow.start < employeeClosing
-    ? { ...rawWindow, end: Math.min(rawWindow.end, employeeClosing), capacity: (Math.min(rawWindow.end, employeeClosing) - rawWindow.start) / 60 }
-    : null;
-  if (rawWindow && !window) return options;
-  if (window) {
-    const requestedDurations = pattern ? [pattern.dailyHours] : [4, 6, 8];
-    const durations = requestedDurations.filter((duration) => duration + mealBreakHours <= window.capacity);
-    if (!durations.length && !pattern) add(`${formatTime(window.start)} - ${formatTime(window.end)}`, 'todo el rango');
-    durations.forEach((duration) => {
-      const elapsedMinutes = (duration + mealBreakHours) * 60;
-      for (let start = window.start; start + elapsedMinutes <= window.end; start += 30) {
-        const note = start === window.start ? 'desde disponibilidad' : start + elapsedMinutes === window.end ? 'hasta cierre' : '';
-        add(makeShift(start, duration), note);
-      }
-    });
-    if (!pattern && window.capacity <= 10 && !durations.some((duration) => Math.abs(duration + mealBreakHours - window.capacity) < 0.01)) {
-      add(`${formatTime(window.start)} - ${formatTime(window.end)}`, 'rango completo');
-    }
-  } else {
-    const opening = (day === 'Sábado' || day === 'Domingo' ? 10 : 9) * 60;
-    const durations = pattern ? [pattern.dailyHours] : [4, 6, 8];
-    durations.forEach((duration) => {
-      const elapsedMinutes = (duration + mealBreakHours) * 60;
-      for (let start = opening; start + elapsedMinutes <= employeeClosing; start += 30) {
-        const note = start + elapsedMinutes === employeeClosing
-          ? closingMinutes(day) > 1440 && employee.overnight ? 'cierre 01:00' : 'hasta cierre'
+  const baseDurations = pattern ? [pattern.dailyHours] : [4, 6, 8];
+  const durations = [...new Set([...baseDurations, ...extraDurations]
+    .map(Number)
+    .filter((duration) => Number.isFinite(duration) && duration > 0)
+    .map((duration) => Math.round(duration * 2) / 2))]
+    .filter((duration) => duration + mealBreakHours <= window.capacity);
+  if (!durations.length && !pattern) add(`${formatTime(window.start)} - ${formatTime(window.end)}`, 'todo el rango');
+  durations.forEach((duration) => {
+    const elapsedMinutes = (duration + mealBreakHours) * 60;
+    for (let start = window.start; start + elapsedMinutes <= window.end; start += 30) {
+      const note = start === window.start
+        ? window.ranged ? 'desde disponibilidad' : ''
+        : start + elapsedMinutes === window.end
+          ? window.ranged ? 'hasta fin disponible' : closingMinutes(day) > 1440 && employee.overnight ? 'cierre 01:00' : 'hasta cierre'
           : '';
-        add(makeShift(start, duration), note);
-      }
-    });
+      add(makeShift(start, duration), note);
+    }
+  });
+  if (!pattern && window.capacity <= 10 && !durations.some((duration) => Math.abs(duration + mealBreakHours - window.capacity) < 0.01)) {
+    add(`${formatTime(window.start)} - ${formatTime(window.end)}`, 'rango completo');
   }
   return [...options, ...collected.values()];
+}
+
+function patternDayCandidates(employee, pattern) {
+  return pattern.allowedDays
+    .map((day) => ({ day, capacity: dayWorkCapacity(employee, day), index: days.indexOf(day) }))
+    .filter((candidate) => candidate.capacity > 0);
+}
+
+function selectPatternDays(employee, pattern) {
+  const candidates = patternDayCandidates(employee, pattern).sort((a, b) => a.index - b.index);
+  const chronological = candidates.slice(0, pattern.workDays);
+  const chronologicalCapacity = chronological.reduce((sum, candidate) => sum + candidate.capacity, 0);
+  if (chronologicalCapacity >= Number(employee.hours || 0)) return chronological;
+  return [...candidates]
+    .sort((a, b) => b.capacity - a.capacity || a.index - b.index)
+    .slice(0, pattern.workDays)
+    .sort((a, b) => a.index - b.index);
+}
+
+function allocateContractHours(totalHours, candidates) {
+  const allocations = new Map();
+  let remaining = Number(totalHours || 0);
+  candidates.forEach((candidate, index) => {
+    const futureCapacity = candidates.slice(index + 1).reduce((sum, item) => sum + item.capacity, 0);
+    const minimumHere = Math.max(0, remaining - futureCapacity);
+    const ideal = Math.ceil((remaining / (candidates.length - index)) * 2) / 2;
+    const assigned = Math.min(candidate.capacity, remaining, Math.max(minimumHere, ideal));
+    allocations.set(candidate.day, Math.round(assigned * 2) / 2);
+    remaining = Math.max(0, Math.round((remaining - assigned) * 2) / 2);
+  });
+  return allocations;
 }
 
 function enforceClosingLimits() {
@@ -229,7 +269,7 @@ function enforceClosingLimits() {
         changed = true;
       }
       const current = state.schedule?.[employee.id]?.[day];
-      if (current && current !== 'LIBRE' && !shiftOptions(employee, day).some((option) => option.value === current)) {
+      if (current && current !== 'LIBRE' && !shiftOptions(employee, day, [shiftHours(current)]).some((option) => option.value === current)) {
         state.schedule[employee.id][day] = 'LIBRE';
         if (state.recommendations?.[employee.id]) state.recommendations[employee.id][day] = 'LIBRE';
         changed = true;
@@ -239,11 +279,11 @@ function enforceClosingLimits() {
   if (changed) localStorage.setItem('turnofacil-html-v1', JSON.stringify(state));
 }
 
-function bestShift(employee, day, remaining) {
+function bestShift(employee, day, remaining, requestedHours = null) {
   const pattern = workPattern(employee);
-  const options = shiftOptions(employee, day).filter((option) => option.hours > 0 && (!pattern || Math.abs(option.hours - pattern.dailyHours) < 0.01));
+  const target = requestedHours ?? (pattern ? pattern.dailyHours : Math.min(8, remaining));
+  const options = shiftOptions(employee, day, [target]).filter((option) => option.hours > 0 && (requestedHours === null || Math.abs(option.hours - target) < 0.01));
   if (!options.length) return null;
-  const target = pattern ? pattern.dailyHours : Math.min(8, remaining);
   const notOver = options.filter((option) => option.hours <= remaining + 0.001);
   const pool = notOver.length ? notOver : options;
   return pool.sort((a, b) => Math.abs(a.hours - target) - Math.abs(b.hours - target))[0];
@@ -258,10 +298,21 @@ function generateSchedule() {
     let remaining = Number(employee.hours || 0);
     schedule[employee.id] = Object.fromEntries(days.map((day) => [day, 'LIBRE']));
     recommendations[employee.id] = Object.fromEntries(days.map((day) => [day, 'LIBRE']));
-    const eligibleDays = pattern ? pattern.allowedDays : days;
-    const availableDays = eligibleDays.filter((day) => shiftOptions(employee, day).some((option) => option.hours > 0 && (!pattern || Math.abs(option.hours - pattern.dailyHours) < 0.01)));
-    const recommendedDays = pattern ? availableDays.slice(0, pattern.workDays) : availableDays;
-    for (const day of recommendedDays) {
+    if (pattern) {
+      const candidates = selectPatternDays(employee, pattern);
+      const allocations = allocateContractHours(employee.hours, candidates);
+      for (const candidate of candidates) {
+        const requestedHours = allocations.get(candidate.day) || 0;
+        if (requestedHours <= 0) continue;
+        const option = bestShift(employee, candidate.day, requestedHours, requestedHours);
+        if (!option) continue;
+        schedule[employee.id][candidate.day] = option.value;
+        recommendations[employee.id][candidate.day] = option.value;
+      }
+      continue;
+    }
+    const availableDays = days.filter((day) => shiftOptions(employee, day).length > 1);
+    for (const day of availableDays) {
       if (remaining <= 0.01) break;
       const option = bestShift(employee, day, remaining);
       if (!option) continue;
@@ -289,8 +340,7 @@ function weekLabel() {
 function availabilityCapacity(employee) {
   const pattern = workPattern(employee);
   if (pattern) {
-    const availableDays = pattern.allowedDays.filter((day) => shiftOptions(employee, day).some((option) => Math.abs(option.hours - pattern.dailyHours) < 0.01));
-    return Math.min(availableDays.length, pattern.workDays) * pattern.dailyHours;
+    return Math.min(Number(employee.hours || 0), selectPatternDays(employee, pattern).reduce((sum, candidate) => sum + candidate.capacity, 0));
   }
   return days.filter((day) => shiftOptions(employee, day).length > 1).reduce((total, day) => {
     const max = Math.max(...shiftOptions(employee, day).map((option) => option.hours));
@@ -306,8 +356,9 @@ function followsWorkPattern(employee) {
   const pattern = workPattern(employee);
   if (!pattern) return Math.abs(assignedHours(employee.id) - Number(employee.hours || 0)) < 0.01;
   const usedDays = days.filter((day) => shiftHours(state.schedule[employee.id]?.[day]) > 0);
-  return usedDays.length === pattern.workDays
-    && usedDays.every((day) => pattern.allowedDays.includes(day) && Math.abs(shiftHours(state.schedule[employee.id]?.[day]) - pattern.dailyHours) < 0.01);
+  return Math.abs(assignedHours(employee.id) - Number(employee.hours || 0)) < 0.01
+    && usedDays.length <= pattern.workDays
+    && usedDays.every((day) => pattern.allowedDays.includes(day));
 }
 
 function renderMetrics() {
@@ -351,8 +402,8 @@ function rowHtml(employee, index) {
       return `<td><div class="availability-controls"><label class="availability-line"><span>Desde</span><select class="availability-time-select ${startClass}" data-id="${employee.id}" data-day="${day}" data-action="availability-start" aria-label="Hora de inicio de ${escapeHtml(employee.name)} para ${day}"><option value="COMPLETA" ${availability.start === 'COMPLETA' ? 'selected' : ''}>Completa</option><option value="X" ${availability.start === 'X' ? 'selected' : ''}>No disponible</option><optgroup label="Horas">${startTimeOptionsHtml(day, availability.mode === 'range' ? availability.start : '')}</optgroup></select></label><label class="availability-line"><span>Hasta</span><select class="availability-time-select availability-end" data-id="${employee.id}" data-day="${day}" data-action="availability-end" aria-label="Hora de término de ${escapeHtml(employee.name)} para ${day}" ${availability.mode !== 'range' ? 'disabled' : ''}>${endTimeOptionsHtml(day, availability.mode === 'range' ? availability.start : '', availability.end)}</select></label></div></td>`;
     }
     const current = state.schedule[employee.id]?.[day] || 'LIBRE';
-    const options = shiftOptions(employee, day);
     const recommended = state.recommendations?.[employee.id]?.[day] || 'LIBRE';
+    const options = shiftOptions(employee, day, [shiftHours(current), shiftHours(recommended)]);
     if (current !== 'LIBRE' && !options.some((option) => option.value === current)) {
       options.splice(1, 0, { value: current, hours: shiftHours(current), label: `${shiftDescription(current)} · guardado` });
     }
@@ -389,8 +440,8 @@ function updateAvailabilityFormPattern() {
   const hours = Number($('#employee-hours').value || 0);
   const pattern = workPattern({ hours });
   const note = $('#availability-pattern-note');
-  if (pattern?.weekendOnly) note.textContent = '16 horas: sábado y domingo, 8 horas de trabajo más 1 hora de colación por turno.';
-  else if (pattern) note.textContent = `${hours} horas: regla ${pattern.code}, ${pattern.workDays} días de ${pattern.dailyHours} horas de trabajo más 1 hora de colación.`;
+  if (pattern?.weekendOnly) note.textContent = '16 horas: sábado y domingo. Las horas se reparten según la disponibilidad de ambos días, más 1 hora de colación por turno.';
+  else if (pattern) note.textContent = `${hours} horas: máximo ${pattern.workDays} días de trabajo (${pattern.code}); las horas diarias se ajustan para completar el contrato según disponibilidad.`;
   else note.textContent = 'Selecciona completa, no disponible o un rango horario.';
   $$('.availability-row').forEach((row) => {
     const locked = Boolean(pattern?.weekendOnly && !pattern.allowedDays.includes(row.dataset.formDay));
