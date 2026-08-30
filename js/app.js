@@ -12,10 +12,26 @@ const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => [...document.querySelectorAll(selector)];
 
 function getMonday() {
-  const date = new Date();
+  const now = new Date();
+  const date = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const day = date.getDay() || 7;
   date.setDate(date.getDate() - day + 1);
-  return date.toISOString().slice(0, 10);
+  return localDateValue(date);
+}
+
+function localDateValue(date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
+function dateForDay(index) {
+  const date = new Date(`${state.week}T12:00:00`);
+  date.setDate(date.getDate() + index);
+  return date;
+}
+
+function dayDateLabel(index) {
+  const date = dateForDay(index);
+  return `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}`;
 }
 
 function load() {
@@ -23,6 +39,12 @@ function load() {
     const saved = JSON.parse(localStorage.getItem('turnofacil-html-v1'));
     if (saved?.employees) state = { ...state, ...saved };
   } catch (_) { /* Mantener datos iniciales si el almacenamiento está dañado. */ }
+  const systemWeek = getMonday();
+  if (state.week !== systemWeek) {
+    state.week = systemWeek;
+    state.schedule = {};
+    state.recommendations = {};
+  }
 }
 
 function save() {
@@ -128,13 +150,14 @@ function bestShift(employee, day, remaining) {
 }
 
 function generateSchedule() {
+  state.week = getMonday();
   const schedule = {};
   const recommendations = {};
   for (const employee of state.employees) {
     let remaining = Number(employee.hours || 0);
     schedule[employee.id] = Object.fromEntries(days.map((day) => [day, 'LIBRE']));
     recommendations[employee.id] = Object.fromEntries(days.map((day) => [day, 'LIBRE']));
-    const availableDays = days.filter((day) => shiftOptions(employee, day).length > 1).slice(0, 5);
+    const availableDays = days.filter((day) => shiftOptions(employee, day).length > 1);
     for (const day of availableDays) {
       if (remaining <= 0.01) break;
       const option = bestShift(employee, day, remaining);
@@ -161,7 +184,7 @@ function weekLabel() {
 }
 
 function availabilityCapacity(employee) {
-  return days.filter((day) => shiftOptions(employee, day).length > 1).slice(0, 5).reduce((total, day) => {
+  return days.filter((day) => shiftOptions(employee, day).length > 1).reduce((total, day) => {
     const max = Math.max(...shiftOptions(employee, day).map((option) => option.hours));
     return total + max;
   }, 0);
@@ -189,7 +212,8 @@ function renderMetrics() {
 function renderTable() {
   const table = $('#schedule-table');
   const body = state.employees.length ? state.employees.map(rowHtml).join('') : '<tr><td colspan="11" class="empty-row">No hay trabajadores. Usa “Agregar trabajador” para comenzar.</td></tr>';
-  table.innerHTML = `<thead><tr><th>Trabajador</th><th class="hours">${state.view === 'schedule' ? 'Asignadas' : 'Horas'}</th>${days.map((day) => `<th class="day">${day}</th>`).join('')}<th class="overnight">Trasnoche</th><th class="remove"></th></tr></thead><tbody>${body}</tbody>`;
+  const today = localDateValue(new Date());
+  table.innerHTML = `<thead><tr><th>Trabajador</th><th class="hours">${state.view === 'schedule' ? 'Asignadas' : 'Horas'}</th>${days.map((day, index) => `<th class="day ${localDateValue(dateForDay(index)) === today ? 'today' : ''}"><span>${day}</span><small>${dayDateLabel(index)}</small></th>`).join('')}<th class="overnight">Trasnoche</th><th class="remove"></th></tr></thead><tbody>${body}</tbody>`;
   table.querySelectorAll('[data-field]').forEach((input) => input.addEventListener('change', onCellChange));
   table.querySelectorAll('[data-action="availability-start"]').forEach((select) => select.addEventListener('change', onAvailabilityStartChange));
   table.querySelectorAll('[data-action="availability-end"]').forEach((select) => select.addEventListener('change', onAvailabilityEndChange));
@@ -402,7 +426,6 @@ function render() {
   renderTable();
 }
 
-$('#week').addEventListener('change', (event) => { state.week = event.target.value; state.schedule = {}; state.recommendations = {}; save(); render(); });
 $('#generate').addEventListener('click', generateSchedule);
 $('#open-add').addEventListener('click', openEmployeeDialog);
 $('#close-add').addEventListener('click', () => $('#employee-dialog').close());

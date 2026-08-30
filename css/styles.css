@@ -19,6 +19,7 @@ h1 { margin:5px 0 3px; font-size:30px; letter-spacing:-.7px; }
 .actions input,.cell-input,.hours-input,.person-input,.shift-select,.field input,.availability-row select,.time-fields select,.availability-time-select { border:1px solid #d7ded4; border-radius:8px; background:white; color:var(--ink); outline:none; }
 .actions input:focus,.cell-input:focus,.hours-input:focus,.person-input:focus,.shift-select:focus,.field input:focus,.availability-row select:focus,.time-fields select:focus,.availability-time-select:focus { border-color:#4b8b68; box-shadow:0 0 0 3px #4b8b681f; }
 .actions input { height:40px; padding:0 10px; }
+.actions input:disabled { opacity:1; background:#f1f4ef; color:#365441; cursor:not-allowed; }
 .button { height:40px; border-radius:9px; padding:0 14px; border:1px solid transparent; font-size:13px; font-weight:700; transition:.15s; }
 .button:hover { transform:translateY(-1px); }
 .button.primary { background:var(--green); color:white; box-shadow:0 3px 10px #195c3b22; }
@@ -41,6 +42,9 @@ th { position:sticky; top:0; z-index:5; height:45px; padding:8px; border-left:1p
 th:first-child { left:0; z-index:8; min-width:240px; padding-left:15px; text-align:left; }
 th.hours { width:75px; }
 th.day { min-width:150px; }
+th.day span,th.day small { display:block; }
+th.day small { margin-top:3px; color:#cfe4d6; font-size:9px; letter-spacing:.04em; }
+th.day.today { background:#28734f; box-shadow:inset 0 -3px 0 #a9d8ba; }
 th.overnight { width:90px; }
 th.remove { width:44px; }
 td { height:54px; padding:6px; border-left:1px solid #e7ebe5; border-bottom:1px solid #e7ebe5; text-align:center; background:white; }

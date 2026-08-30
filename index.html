@@ -21,7 +21,7 @@
       <section class="intro">
         <div><div class="eyebrow">Semana de trabajo</div><h1 id="week-title">Horario semanal</h1><p>Define disponibilidades y genera una propuesta en segundos.</p></div>
         <div class="actions">
-          <input id="week" type="date" aria-label="Lunes de la semana" />
+          <input id="week" type="date" aria-label="Semana actual según fecha del sistema" title="Se calcula automáticamente con la fecha actual del computador" disabled />
           <button id="print" class="button secondary">Imprimir</button>
           <button id="export" class="button secondary">Descargar CSV</button>
           <button id="generate" class="button primary">✦ Generar horario</button>
@@ -34,7 +34,7 @@
           <button id="open-add" class="button secondary">＋ Agregar trabajador</button>
         </div>
         <div class="table-wrap"><table id="schedule-table"></table></div>
-        <div class="hint"><span>Las recomendaciones respetan la disponibilidad y las horas semanales. Cada turno muestra claramente su <b>Inicio</b> y <b>Fin</b>. Los datos se guardan solamente en este navegador.</span><span id="row-count"></span></div>
+        <div class="hint"><span>Semana completa de <b>lunes a domingo</b>, calculada con la fecha actual del computador. Las recomendaciones respetan disponibilidad y horas semanales.</span><span id="row-count"></span></div>
       </section>
     </main>
     <dialog id="employee-dialog" class="employee-dialog" aria-labelledby="employee-dialog-title">

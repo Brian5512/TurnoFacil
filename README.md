@@ -21,6 +21,7 @@ No requiere instalación ni conexión a Internet. Los datos que escribas se guar
 
 - Agregar trabajadores con nombre, RUT, horas semanales y disponibilidad diaria mediante listas de hora “Desde” y “Hasta”.
 - Generar recomendaciones compatibles con la disponibilidad y las horas semanales, mostrando inicio y fin de cada turno.
+- Trabajar siempre con la semana completa vigente, de lunes a domingo, calculada desde la fecha del sistema.
 - Elegir manualmente entre opciones de turno válidas para cada día.
 - Comparar horas asignadas con horas contratadas.
 - Imprimir o descargar el horario como CSV.
