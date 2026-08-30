@@ -71,9 +71,51 @@ function formatTime(minutes) {
 
 const timeValues = Array.from({ length: 48 }, (_, index) => formatTime(index * 30));
 
-function timeOptionsHtml(selected = '', includePlaceholder = false) {
-  const placeholder = includePlaceholder ? '<option value="">Selecciona</option>' : '';
-  return `${placeholder}${timeValues.map((time) => `<option value="${time}" ${time === selected ? 'selected' : ''}>${time}</option>`).join('')}`;
+function closingMinutes(day) {
+  return day === 'Viernes' || day === 'Sábado' ? 25 * 60 : 23 * 60;
+}
+
+function closingTime(day) {
+  return formatTime(closingMinutes(day));
+}
+
+function closingDisplay(day) {
+  return closingMinutes(day) > 1440 ? `${closingTime(day)} (+1 día)` : closingTime(day);
+}
+
+function startTimeOptionsHtml(day, selected = '') {
+  const limit = Math.min(closingMinutes(day), 1440);
+  return timeValues.filter((time) => parseTime(time) < limit).map((time) => `<option value="${time}" ${time === selected ? 'selected' : ''}>${time}</option>`).join('');
+}
+
+function endMinutesForRange(start, end) {
+  let endMinutes = parseTime(end);
+  const startMinutes = parseTime(start);
+  if (endMinutes <= startMinutes) endMinutes += 1440;
+  return endMinutes;
+}
+
+function endTimeOptionsHtml(day, start, selected = '') {
+  if (!start || start === 'COMPLETA' || start === 'X') return `<option value="">Máx. ${closingDisplay(day)}</option>`;
+  const startMinutes = parseTime(start);
+  const seen = new Set();
+  const options = [];
+  for (let minutes = startMinutes + 30; minutes <= closingMinutes(day); minutes += 30) {
+    const value = formatTime(minutes);
+    if (seen.has(value)) continue;
+    seen.add(value);
+    const label = minutes >= 1440 ? `${value} (+1 día)` : value;
+    options.push(`<option value="${value}" ${value === selected ? 'selected' : ''}>${label}</option>`);
+  }
+  return options.length ? options.join('') : '<option value="">Sin horas disponibles</option>';
+}
+
+function endWithinClosing(day, start, end) {
+  return Boolean(start && end && start !== end && endMinutesForRange(start, end) <= closingMinutes(day));
+}
+
+function defaultEndForDay(day, start) {
+  return formatTime(Math.min(parseTime(start) + 8 * 60, closingMinutes(day)));
 }
 
 function parseWindow(value) {
@@ -120,7 +162,12 @@ function shiftOptions(employee, day) {
     if (value !== 'LIBRE' && !collected.has(value)) collected.set(value, { value, hours: shiftHours(value), label: shiftDescription(value, note) });
   };
 
-  const window = parseWindow(availability);
+  const rawWindow = parseWindow(availability);
+  const employeeClosing = employee.overnight ? closingMinutes(day) : Math.min(closingMinutes(day), 1440);
+  const window = rawWindow && rawWindow.start < employeeClosing
+    ? { ...rawWindow, end: Math.min(rawWindow.end, employeeClosing), capacity: (Math.min(rawWindow.end, employeeClosing) - rawWindow.start) / 60 }
+    : null;
+  if (rawWindow && !window) return options;
   if (window) {
     const durations = [4, 6, 8].filter((duration) => duration <= window.capacity);
     if (!durations.length) add(`${formatTime(window.start)} - ${formatTime(window.end)}`, 'todo el rango');
@@ -134,10 +181,34 @@ function shiftOptions(employee, day) {
     }
   } else {
     const starts = day === 'Sábado' || day === 'Domingo' ? [10, 12, 14] : [9, 10, 12, 14];
-    [4, 6, 8].forEach((duration) => starts.forEach((start) => add(makeShift(start * 60, duration))));
-    if (employee.overnight) add('17:00 - 01:00', 'trasnoche');
+    [4, 6, 8].forEach((duration) => {
+      starts.filter((start) => start * 60 + duration * 60 <= employeeClosing).forEach((start) => add(makeShift(start * 60, duration)));
+      const closingStart = employeeClosing - duration * 60;
+      if (closingStart >= 0 && closingStart < 1440) add(makeShift(closingStart, duration), closingMinutes(day) > 1440 && employee.overnight ? 'hasta cierre · trasnoche' : 'hasta cierre');
+    });
   }
   return [...options, ...collected.values()];
+}
+
+function enforceClosingLimits() {
+  let changed = false;
+  for (const employee of state.employees) {
+    for (const day of days) {
+      const availability = availabilityParts(employee.availability[day]);
+      if (availability.mode === 'range' && !endWithinClosing(day, availability.start, availability.end)) {
+        if (parseTime(availability.start) >= Math.min(closingMinutes(day), 1440)) employee.availability[day] = 'X';
+        else employee.availability[day] = `${availability.start} - ${closingTime(day)}`;
+        changed = true;
+      }
+      const current = state.schedule?.[employee.id]?.[day];
+      if (current && current !== 'LIBRE' && !shiftOptions(employee, day).some((option) => option.value === current)) {
+        state.schedule[employee.id][day] = 'LIBRE';
+        if (state.recommendations?.[employee.id]) state.recommendations[employee.id][day] = 'LIBRE';
+        changed = true;
+      }
+    }
+  }
+  if (changed) localStorage.setItem('turnofacil-html-v1', JSON.stringify(state));
 }
 
 function bestShift(employee, day, remaining) {
@@ -213,7 +284,7 @@ function renderTable() {
   const table = $('#schedule-table');
   const body = state.employees.length ? state.employees.map(rowHtml).join('') : '<tr><td colspan="11" class="empty-row">No hay trabajadores. Usa “Agregar trabajador” para comenzar.</td></tr>';
   const today = localDateValue(new Date());
-  table.innerHTML = `<thead><tr><th>Trabajador</th><th class="hours">${state.view === 'schedule' ? 'Asignadas' : 'Horas'}</th>${days.map((day, index) => `<th class="day ${localDateValue(dateForDay(index)) === today ? 'today' : ''}"><span>${day}</span><small>${dayDateLabel(index)}</small></th>`).join('')}<th class="overnight">Trasnoche</th><th class="remove"></th></tr></thead><tbody>${body}</tbody>`;
+  table.innerHTML = `<thead><tr><th>Trabajador</th><th class="hours">${state.view === 'schedule' ? 'Asignadas' : 'Horas'}</th>${days.map((day, index) => `<th class="day ${localDateValue(dateForDay(index)) === today ? 'today' : ''}"><span>${day}</span><small>${dayDateLabel(index)} · Cierre ${closingDisplay(day)}</small></th>`).join('')}<th class="overnight">Trasnoche</th><th class="remove"></th></tr></thead><tbody>${body}</tbody>`;
   table.querySelectorAll('[data-field]').forEach((input) => input.addEventListener('change', onCellChange));
   table.querySelectorAll('[data-action="availability-start"]').forEach((select) => select.addEventListener('change', onAvailabilityStartChange));
   table.querySelectorAll('[data-action="availability-end"]').forEach((select) => select.addEventListener('change', onAvailabilityEndChange));
@@ -230,7 +301,7 @@ function rowHtml(employee, index) {
     if (state.view === 'availability') {
       const availability = availabilityParts(employee.availability[day]);
       const startClass = availability.mode === 'unavailable' ? 'unavailable' : '';
-      return `<td><div class="availability-controls"><label class="availability-line"><span>Desde</span><select class="availability-time-select ${startClass}" data-id="${employee.id}" data-day="${day}" data-action="availability-start" aria-label="Hora de inicio de ${escapeHtml(employee.name)} para ${day}"><option value="COMPLETA" ${availability.start === 'COMPLETA' ? 'selected' : ''}>Completa</option><option value="X" ${availability.start === 'X' ? 'selected' : ''}>No disponible</option><optgroup label="Horas">${timeOptionsHtml(availability.mode === 'range' ? availability.start : '')}</optgroup></select></label><label class="availability-line"><span>Hasta</span><select class="availability-time-select availability-end" data-id="${employee.id}" data-day="${day}" data-action="availability-end" aria-label="Hora de término de ${escapeHtml(employee.name)} para ${day}" ${availability.mode !== 'range' ? 'disabled' : ''}>${timeOptionsHtml(availability.end, true)}</select></label></div></td>`;
+      return `<td><div class="availability-controls"><label class="availability-line"><span>Desde</span><select class="availability-time-select ${startClass}" data-id="${employee.id}" data-day="${day}" data-action="availability-start" aria-label="Hora de inicio de ${escapeHtml(employee.name)} para ${day}"><option value="COMPLETA" ${availability.start === 'COMPLETA' ? 'selected' : ''}>Completa</option><option value="X" ${availability.start === 'X' ? 'selected' : ''}>No disponible</option><optgroup label="Horas">${startTimeOptionsHtml(day, availability.mode === 'range' ? availability.start : '')}</optgroup></select></label><label class="availability-line"><span>Hasta</span><select class="availability-time-select availability-end" data-id="${employee.id}" data-day="${day}" data-action="availability-end" aria-label="Hora de término de ${escapeHtml(employee.name)} para ${day}" ${availability.mode !== 'range' ? 'disabled' : ''}>${endTimeOptionsHtml(day, availability.mode === 'range' ? availability.start : '', availability.end)}</select></label></div></td>`;
     }
     const current = state.schedule[employee.id]?.[day] || 'LIBRE';
     const options = shiftOptions(employee, day);
@@ -252,10 +323,17 @@ function rowHtml(employee, index) {
 }
 
 function renderAvailabilityForm() {
-  $('#availability-form').innerHTML = days.map((day) => `<div class="availability-row" data-form-day="${day}"><strong>${day}</strong><select class="availability-mode" aria-label="Disponibilidad de ${day}"><option value="complete">Completa</option><option value="range">Rango horario</option><option value="unavailable">No disponible</option></select><div class="time-fields" hidden><label>Desde <select class="start-time" aria-label="Hora de inicio de ${day}">${timeOptionsHtml('09:00')}</select></label><label>Hasta <select class="end-time" aria-label="Hora de término de ${day}">${timeOptionsHtml('18:00')}</select></label></div></div>`).join('');
+  $('#availability-form').innerHTML = days.map((day) => `<div class="availability-row" data-form-day="${day}"><div class="day-close"><strong>${day}</strong><small>Cierre ${closingDisplay(day)}</small></div><select class="availability-mode" aria-label="Disponibilidad de ${day}"><option value="complete">Completa</option><option value="range">Rango horario</option><option value="unavailable">No disponible</option></select><div class="time-fields" hidden><label>Desde <select class="start-time" aria-label="Hora de inicio de ${day}">${startTimeOptionsHtml(day, '09:00')}</select></label><label>Hasta <select class="end-time" aria-label="Hora de término de ${day}">${endTimeOptionsHtml(day, '09:00', '18:00')}</select></label></div></div>`).join('');
   $$('.availability-mode').forEach((select) => select.addEventListener('change', () => {
     const row = select.closest('.availability-row');
     row.querySelector('.time-fields').hidden = select.value !== 'range';
+  }));
+  $$('.start-time').forEach((select) => select.addEventListener('change', () => {
+    const row = select.closest('.availability-row');
+    const day = row.dataset.formDay;
+    const endSelect = row.querySelector('.end-time');
+    const selectedEnd = endWithinClosing(day, select.value, endSelect.value) ? endSelect.value : defaultEndForDay(day, select.value);
+    endSelect.innerHTML = endTimeOptionsHtml(day, select.value, selectedEnd);
   }));
 }
 
@@ -332,10 +410,9 @@ function onAvailabilityStartChange(event) {
     employee.availability[day] = start;
   } else {
     const current = availabilityParts(employee.availability[day]);
-    let previousDuration = current.mode === 'range' ? parseTime(current.end) - parseTime(start) : 0;
-    if (previousDuration <= 0) previousDuration += 1440;
-    const canKeepEnd = current.mode === 'range' && current.end !== start && previousDuration <= 16 * 60;
-    const end = canKeepEnd ? current.end : formatTime(parseTime(start) + 8 * 60);
+    const previousDuration = current.mode === 'range' ? endMinutesForRange(start, current.end) - parseTime(start) : 0;
+    const canKeepEnd = current.mode === 'range' && endWithinClosing(day, start, current.end) && previousDuration <= 16 * 60;
+    const end = canKeepEnd ? current.end : defaultEndForDay(day, start);
     employee.availability[day] = `${start} - ${end}`;
   }
   state.schedule = {};
@@ -349,8 +426,8 @@ function onAvailabilityEndChange(event) {
   if (!employee || !event.target.value) return;
   const day = event.target.dataset.day;
   const current = availabilityParts(employee.availability[day]);
-  if (current.mode !== 'range' || current.start === event.target.value) {
-    toast('La hora de término debe ser distinta de la hora de inicio.');
+  if (current.mode !== 'range' || !endWithinClosing(day, current.start, event.target.value)) {
+    toast(`El turno debe terminar antes del cierre de ${closingDisplay(day)}.`);
     render();
     return;
   }
@@ -436,4 +513,5 @@ $('#print').addEventListener('click', () => window.print());
 $$('.tab').forEach((tab) => tab.addEventListener('click', () => { state.view = tab.dataset.view; render(); }));
 
 load();
+enforceClosingLimits();
 render();
