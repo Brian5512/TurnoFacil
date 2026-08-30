@@ -19,22 +19,31 @@
     </header>
     <main class="workspace">
       <section class="intro">
-        <div><div class="eyebrow">Semana de trabajo</div><h1 id="week-title">Horario semanal</h1><p>Define disponibilidades y genera una propuesta en segundos.</p></div>
+        <div><div class="eyebrow">Semana de trabajo</div><h1 id="week-title">Horario semanal</h1><p>Planifica por disponibilidad, cargo y dotación necesaria.</p></div>
         <div class="actions">
-          <input id="week" type="date" aria-label="Semana actual según fecha del sistema" title="Se calcula automáticamente con la fecha actual del computador" disabled />
-          <button id="print" class="button secondary">Imprimir</button>
-          <button id="export" class="button secondary">Descargar CSV</button>
+          <div class="week-navigation" aria-label="Navegación semanal">
+            <button id="previous-week" class="icon-button" type="button" aria-label="Semana anterior">‹</button>
+            <input id="week" type="date" aria-label="Semana seleccionada" />
+            <button id="next-week" class="icon-button" type="button" aria-label="Semana siguiente">›</button>
+            <button id="current-week" class="button secondary compact" type="button">Hoy</button>
+          </div>
+          <label class="strategy-field"><span>Propuesta</span><select id="strategy" aria-label="Tipo de propuesta"><option value="balanced">Equilibrada</option><option value="coverage">Máxima cobertura</option><option value="early">Menos cierres</option></select></label>
           <button id="generate" class="button primary">✦ Generar horario</button>
         </div>
       </section>
+      <section class="utility-bar" aria-label="Herramientas del horario">
+        <div class="utility-group"><button id="copy-previous" class="button secondary">Copiar semana anterior</button><button id="export-backup" class="button secondary">Respaldar datos</button><button id="import-backup" class="button secondary">Importar respaldo</button><input id="backup-file" type="file" accept="application/json,.json" hidden /></div>
+        <div class="utility-group"><button id="individual-report" class="button secondary">Vista por trabajador</button><button id="export" class="button secondary">Descargar Excel</button><button id="print" class="button secondary">Guardar PDF / imprimir</button></div>
+      </section>
       <section id="metrics" class="metrics"></section>
+      <section id="alerts-panel" class="alerts-panel" aria-live="polite"></section>
       <section class="panel">
         <div class="panel-toolbar">
-          <div class="tabs"><button data-view="availability" class="tab active">Disponibilidades</button><button data-view="schedule" class="tab">Horario generado</button></div>
-          <button id="open-add" class="button secondary">＋ Agregar trabajador</button>
+          <div class="tabs"><button data-view="availability" class="tab active">Disponibilidades</button><button data-view="schedule" class="tab">Horario generado</button><button data-view="coverage" class="tab">Dotación</button></div>
+          <div class="panel-actions"><button id="open-coverage" class="button secondary">＋ Regla de dotación</button><button id="open-add" class="button secondary">＋ Agregar trabajador</button></div>
         </div>
         <div class="table-wrap"><table id="schedule-table"></table></div>
-        <div class="hint"><span>Los turnos comienzan desde las <b>09:00</b> y ofrecen alternativas cada 30 minutos hasta el cierre máximo permitido.</span><span id="row-count"></span></div>
+        <div class="hint"><span id="view-hint">Los turnos comienzan desde las <b>09:00</b> y ofrecen alternativas cada 30 minutos hasta el cierre máximo permitido.</span><span id="row-count"></span></div>
       </section>
     </main>
     <dialog id="employee-dialog" class="employee-dialog" aria-labelledby="employee-dialog-title">
@@ -43,9 +52,10 @@
           <div><div class="eyebrow">Nuevo integrante</div><h2 id="employee-dialog-title">Agregar trabajador</h2><p>Registra sus datos y disponibilidad semanal.</p></div>
           <button type="button" id="close-add" class="dialog-close" aria-label="Cerrar">×</button>
         </div>
-        <div class="form-grid">
+        <div class="form-grid employee-fields">
           <label class="field"><span>Nombre completo</span><input id="employee-name" name="name" autocomplete="off" required placeholder="Ej.: Trabajador 3" /></label>
           <label class="field"><span>RUT</span><input id="employee-rut" name="rut" autocomplete="off" required placeholder="Ingresa el RUT" /></label>
+          <label class="field"><span>Cargo o función</span><input id="employee-role" name="role" list="role-options" autocomplete="off" required value="General" placeholder="Ej.: Caja" /></label>
           <label class="field"><span>Horas semanales</span><input id="employee-hours" name="hours" type="number" min="1" max="60" value="30" required /></label>
           <label class="check-field"><input id="employee-overnight" name="overnight" type="checkbox" /><span>¿Puede tener cierre hasta la 01:00?</span></label>
         </div>
@@ -54,6 +64,35 @@
         <div class="dialog-actions"><button type="button" id="cancel-add" class="button secondary">Cancelar</button><button type="submit" class="button primary">Guardar trabajador</button></div>
       </form>
     </dialog>
+    <dialog id="coverage-dialog" class="employee-dialog coverage-dialog" aria-labelledby="coverage-dialog-title">
+      <form id="coverage-form" method="dialog">
+        <div class="dialog-head">
+          <div><div class="eyebrow">Necesidad operacional</div><h2 id="coverage-dialog-title">Agregar regla de dotación</h2><p>Indica cuántas personas se necesitan durante una franja horaria.</p></div>
+          <button type="button" id="close-coverage" class="dialog-close" aria-label="Cerrar">×</button>
+        </div>
+        <div class="form-grid coverage-fields">
+          <label class="field"><span>Día</span><select id="coverage-day" required></select></label>
+          <label class="field"><span>Desde</span><select id="coverage-start" required></select></label>
+          <label class="field"><span>Hasta</span><select id="coverage-end" required></select></label>
+          <label class="field"><span>Personas necesarias</span><input id="coverage-needed" type="number" min="1" max="50" value="1" required /></label>
+          <label class="field"><span>Cargo requerido</span><input id="coverage-role" list="coverage-role-options" autocomplete="off" value="Todos" required /></label>
+        </div>
+        <div class="dialog-actions"><button type="button" id="cancel-coverage" class="button secondary">Cancelar</button><button type="submit" class="button primary">Guardar regla</button></div>
+      </form>
+    </dialog>
+    <dialog id="individual-dialog" class="employee-dialog individual-dialog" aria-labelledby="individual-dialog-title">
+      <form method="dialog">
+        <div class="dialog-head">
+          <div><div class="eyebrow">Resumen personal</div><h2 id="individual-dialog-title">Horario por trabajador</h2><p>Consulta su semana y las horas conservadas en el historial.</p></div>
+          <button type="button" id="close-individual" class="dialog-close" aria-label="Cerrar">×</button>
+        </div>
+        <label class="field report-worker-field"><span>Trabajador</span><select id="individual-employee"></select></label>
+        <div id="individual-report-content" class="individual-report-content"></div>
+        <div class="dialog-actions"><button type="button" id="cancel-individual" class="button secondary">Cerrar</button><button type="button" id="print-individual" class="button primary">Guardar ficha en PDF</button></div>
+      </form>
+    </dialog>
+    <datalist id="role-options"><option value="General"></option><option value="Caja"></option><option value="Cocina"></option><option value="Atención"></option><option value="Encargado"></option></datalist>
+    <datalist id="coverage-role-options"><option value="Todos"></option><option value="General"></option><option value="Caja"></option><option value="Cocina"></option><option value="Atención"></option><option value="Encargado"></option></datalist>
     <div id="toast" role="status"></div>
     <script src="js/app.js"></script>
   </body>
