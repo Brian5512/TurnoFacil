@@ -20,7 +20,7 @@ No requiere instalación ni conexión a Internet. Los datos se guardan automáti
 ## Funciones
 
 - Agregar trabajadores con nombre, RUT, horas semanales y disponibilidad diaria mediante listas de hora “Desde” y “Hasta”.
-- Registrar el cargo o función de cada trabajador y validar el dígito verificador del RUT al agregarlo.
+- Registrar el cargo como **Crew** o **Crew-Master** y validar el dígito verificador del RUT al agregarlo.
 - Generar recomendaciones compatibles con la disponibilidad y las horas semanales, mostrando inicio y fin de cada turno.
 - Abrir automáticamente la semana vigente según la fecha del sistema, navegar entre semanas, conservar el historial y copiar la semana anterior.
 - Respetar los cierres operacionales: 23:00 de lunes a jueves y domingo; 01:00 del día siguiente viernes y sábado.

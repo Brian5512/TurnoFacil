@@ -6,8 +6,8 @@ const openingMinutes = 9 * 60;
 const complete = () => Object.fromEntries(days.map((day) => [day, 'COMPLETA']));
 const emptyDays = () => Object.fromEntries(days.map((day) => [day, 'LIBRE']));
 const seed = [
-  { id: 1, name: 'Trabajador 1', rut: '', role: 'General', hours: 30, overnight: false, availability: complete() },
-  { id: 2, name: 'Trabajador 2', rut: '', role: 'General', hours: 20, overnight: false, availability: complete() },
+  { id: 1, name: 'Trabajador 1', rut: '', role: 'Crew', hours: 30, overnight: false, availability: complete() },
+  { id: 2, name: 'Trabajador 2', rut: '', role: 'Crew', hours: 20, overnight: false, availability: complete() },
 ];
 
 let state = { version: appVersion, employees: seed, week: getMonday(), view: 'availability', strategy: 'balanced', schedule: {}, recommendations: {}, coverageRules: [], history: {} };
@@ -53,6 +53,14 @@ function dayDateLabel(index) {
   return `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}`;
 }
 
+function normalizeEmployeeRole(value) {
+  return String(value || '').trim().toLocaleLowerCase('es') === 'crew-master' ? 'Crew-Master' : 'Crew';
+}
+
+function normalizeCoverageRole(value) {
+  return String(value || '').trim().toLocaleLowerCase('es') === 'todos' ? 'Todos' : normalizeEmployeeRole(value);
+}
+
 function normalizeCoverageRule(rule, index = 0) {
   const day = days.includes(rule.day) ? rule.day : 'Lunes';
   const startCandidate = /^\d{1,2}:\d{2}$/.test(String(rule.start || '')) ? String(rule.start) : '09:00';
@@ -64,7 +72,7 @@ function normalizeCoverageRule(rule, index = 0) {
     start,
     end: endWithinClosing(day, start, endCandidate) ? endCandidate : defaultEndForDay(day, start),
     needed: Math.max(1, Math.min(50, Number(rule.needed) || 1)),
-    role: String(rule.role || 'Todos'),
+    role: normalizeCoverageRole(rule.role),
   };
 }
 
@@ -76,7 +84,7 @@ function load() {
         ...state,
         ...saved,
         version: appVersion,
-        employees: saved.employees.map((employee, index) => ({ ...employee, id: Number(employee.id) || Date.now() + index, role: employee.role || 'General', availability: { ...complete(), ...(employee.availability || {}) } })),
+        employees: saved.employees.map((employee, index) => ({ ...employee, id: Number(employee.id) || Date.now() + index, role: normalizeEmployeeRole(employee.role), availability: { ...complete(), ...(employee.availability || {}) } })),
         coverageRules: Array.isArray(saved.coverageRules) ? saved.coverageRules.map(normalizeCoverageRule) : [],
         history: saved.history && typeof saved.history === 'object' ? saved.history : {},
       };
@@ -288,7 +296,7 @@ function shiftOptions(employee, day, extraDurations = []) {
 
 function roleMatches(employeeRole, requiredRole) {
   const required = String(requiredRole || 'Todos').trim().toLocaleLowerCase('es');
-  return required === 'todos' || String(employeeRole || 'General').trim().toLocaleLowerCase('es') === required;
+  return required === 'todos' || normalizeEmployeeRole(employeeRole).toLocaleLowerCase('es') === required;
 }
 
 function ruleWindow(rule) {
@@ -606,7 +614,7 @@ function rowHtml(employee, index) {
   const hoursCell = state.view === 'schedule'
     ? `<div class="hours-summary ${hoursClass}"><strong>${formatNumber(assigned)}</strong><span>/ ${formatNumber(employee.hours)} h</span><small>${patternSummary(employee)}</small></div>`
     : `<div class="hours-editor"><input class="hours-input" type="number" min="1" max="60" data-id="${employee.id}" data-field="hours" value="${employee.hours}" /><small>${patternSummary(employee)}</small></div>`;
-  return `<tr><td class="person"><input class="person-input" data-id="${employee.id}" data-field="name" value="${escapeHtml(employee.name)}" /><input class="person-input rut" data-id="${employee.id}" data-field="rut" value="${escapeHtml(employee.rut)}" placeholder="RUT" /><input class="person-input role" data-id="${employee.id}" data-field="role" list="role-options" value="${escapeHtml(employee.role || 'General')}" placeholder="Cargo" /></td><td>${hoursCell}</td>${dayCells}<td><button class="toggle ${employee.overnight ? 'on' : ''}" data-id="${employee.id}" data-action="overnight" aria-label="${escapeHtml(employee.name)}: puede tener cierre hasta la 01:00, ${employee.overnight ? 'sí' : 'no'}">${employee.overnight ? 'SÍ' : 'NO'}</button></td><td class="remove-cell"><button class="delete" title="Eliminar trabajador" data-id="${employee.id}" data-action="delete">×</button></td></tr>`;
+  return `<tr><td class="person"><input class="person-input" data-id="${employee.id}" data-field="name" value="${escapeHtml(employee.name)}" /><input class="person-input rut" data-id="${employee.id}" data-field="rut" value="${escapeHtml(employee.rut)}" placeholder="RUT" /><select class="person-input role" data-id="${employee.id}" data-field="role"><option value="Crew" ${employee.role === 'Crew' ? 'selected' : ''}>Crew</option><option value="Crew-Master" ${employee.role === 'Crew-Master' ? 'selected' : ''}>Crew-Master</option></select></td><td>${hoursCell}</td>${dayCells}<td><button class="toggle ${employee.overnight ? 'on' : ''}" data-id="${employee.id}" data-action="overnight" aria-label="${escapeHtml(employee.name)}: puede tener cierre hasta la 01:00, ${employee.overnight ? 'sí' : 'no'}">${employee.overnight ? 'SÍ' : 'NO'}</button></td><td class="remove-cell"><button class="delete" title="Eliminar trabajador" data-id="${employee.id}" data-action="delete">×</button></td></tr>`;
 }
 
 function renderCoverageTable() {
@@ -618,7 +626,7 @@ function renderCoverageTable() {
       const stats = coverageRuleStats(rule);
       const excess = Math.max(0, stats.minimum - Number(rule.needed || 1));
       const status = stats.missing ? `<span class="coverage-status missing">Faltan ${stats.missing}</span>` : excess ? `<span class="coverage-status excess">＋ ${excess} disponibles</span>` : '<span class="coverage-status ok">Completa</span>';
-      return `<tr><td><select data-rule-id="${rule.id}" data-rule-field="day">${days.map((day) => `<option value="${day}" ${day === rule.day ? 'selected' : ''}>${day}</option>`).join('')}</select></td><td><div class="coverage-window"><select data-rule-id="${rule.id}" data-rule-field="start">${startTimeOptionsHtml(rule.day, rule.start)}</select><span>→</span><select data-rule-id="${rule.id}" data-rule-field="end">${endTimeOptionsHtml(rule.day, rule.start, rule.end)}</select></div></td><td><input data-rule-id="${rule.id}" data-rule-field="role" list="coverage-role-options" value="${escapeHtml(rule.role)}" /></td><td><input class="number-field" type="number" min="1" max="50" data-rule-id="${rule.id}" data-rule-field="needed" value="${rule.needed}" /></td><td><strong>${stats.minimum}</strong> personas</td><td>${status}</td><td><button class="delete" data-action="delete-rule" data-rule-id="${rule.id}" title="Eliminar regla">×</button></td></tr>`;
+      return `<tr><td><select data-rule-id="${rule.id}" data-rule-field="day">${days.map((day) => `<option value="${day}" ${day === rule.day ? 'selected' : ''}>${day}</option>`).join('')}</select></td><td><div class="coverage-window"><select data-rule-id="${rule.id}" data-rule-field="start">${startTimeOptionsHtml(rule.day, rule.start)}</select><span>→</span><select data-rule-id="${rule.id}" data-rule-field="end">${endTimeOptionsHtml(rule.day, rule.start, rule.end)}</select></div></td><td><select data-rule-id="${rule.id}" data-rule-field="role"><option value="Todos" ${rule.role === 'Todos' ? 'selected' : ''}>Todos</option><option value="Crew" ${rule.role === 'Crew' ? 'selected' : ''}>Crew</option><option value="Crew-Master" ${rule.role === 'Crew-Master' ? 'selected' : ''}>Crew-Master</option></select></td><td><input class="number-field" type="number" min="1" max="50" data-rule-id="${rule.id}" data-rule-field="needed" value="${rule.needed}" /></td><td><strong>${stats.minimum}</strong> personas</td><td>${status}</td><td><button class="delete" data-action="delete-rule" data-rule-id="${rule.id}" title="Eliminar regla">×</button></td></tr>`;
     }).join('') : '<tr><td colspan="7" class="empty-row">Todavía no hay reglas de dotación. Agrega la primera para medir la cobertura del horario.</td></tr>';
   table.innerHTML = `<thead><tr><th>Día</th><th>Franja horaria</th><th>Cargo</th><th>Necesarios</th><th>Cobertura mínima</th><th>Estado</th><th></th></tr></thead><tbody>${body}</tbody>`;
   table.querySelectorAll('[data-rule-field]').forEach((input) => input.addEventListener('change', onCoverageRuleChange));
@@ -666,7 +674,7 @@ function updateAvailabilityFormPattern() {
 function openEmployeeDialog() {
   $('#employee-form').reset();
   $('#employee-hours').value = 30;
-  $('#employee-role').value = 'General';
+  $('#employee-role').value = 'Crew';
   renderAvailabilityForm();
   $('#employee-dialog').showModal();
   setTimeout(() => $('#employee-name').focus(), 0);
@@ -706,7 +714,7 @@ function addEmployeeFromForm(event) {
     id: Date.now(),
     name: $('#employee-name').value.trim(),
     rut,
-    role: $('#employee-role').value.trim() || 'General',
+    role: normalizeEmployeeRole($('#employee-role').value),
     hours: weeklyHours,
     overnight: $('#employee-overnight').checked,
     availability,
@@ -783,7 +791,7 @@ function onCellChange(event) {
   const field = event.target.dataset.field;
   if (field === 'hours') employee.hours = Number(event.target.value);
   else if (field === 'rut') employee.rut = formatRut(event.target.value);
-  else employee[field] = event.target.value.trim() || (field === 'role' ? 'General' : '');
+  else employee[field] = field === 'role' ? normalizeEmployeeRole(event.target.value) : event.target.value.trim();
   clearEmployeeSchedule(employee.id);
   save();
   render();
@@ -939,7 +947,7 @@ function downloadBlob(content, type, filename) {
 
 function exportExcel() {
   const headers = ['Trabajador', 'RUT', 'Cargo', 'Horas contratadas', ...days, 'Horas asignadas'];
-  const rows = state.employees.map((employee) => [employee.name, employee.rut, employee.role || 'General', employee.hours, ...days.map((day) => state.schedule[employee.id]?.[day] || 'LIBRE'), assignedHours(employee.id)]);
+  const rows = state.employees.map((employee) => [employee.name, employee.rut, normalizeEmployeeRole(employee.role), employee.hours, ...days.map((day) => state.schedule[employee.id]?.[day] || 'LIBRE'), assignedHours(employee.id)]);
   const table = `<table><tr>${headers.map((cell) => `<th>${escapeHtml(cell)}</th>`).join('')}</tr>${rows.map((row) => `<tr>${row.map((cell) => `<td>${escapeHtml(cell)}</td>`).join('')}</tr>`).join('')}</table>`;
   const html = `<!doctype html><html><head><meta charset="utf-8"><style>table{border-collapse:collapse;font-family:Arial}th{background:#195c3b;color:#fff}th,td{border:1px solid #bbb;padding:6px}td{mso-number-format:"\\@"}</style></head><body><h2>TurnoFácil · ${escapeHtml(weekLabel())}</h2>${table}</body></html>`;
   downloadBlob(`\ufeff${html}`, 'application/vnd.ms-excel;charset=utf-8', `horario-${state.week}.xls`);
@@ -971,7 +979,7 @@ async function importBackup(event) {
       ...imported,
       version: appVersion,
       week: normalizeMonday(imported.week || getMonday()),
-      employees: imported.employees.map((employee, index) => ({ ...employee, id: Number(employee.id) || Date.now() + index, role: employee.role || 'General', availability: { ...complete(), ...(employee.availability || {}) } })),
+      employees: imported.employees.map((employee, index) => ({ ...employee, id: Number(employee.id) || Date.now() + index, role: normalizeEmployeeRole(employee.role), availability: { ...complete(), ...(employee.availability || {}) } })),
       coverageRules: Array.isArray(imported.coverageRules) ? imported.coverageRules.map(normalizeCoverageRule) : [],
       history: imported.history && typeof imported.history === 'object' ? imported.history : {},
     };
@@ -1017,7 +1025,7 @@ function renderIndividualReport() {
     const shift = state.schedule?.[employee.id]?.[day] || 'LIBRE';
     return `<tr><td><strong>${day}</strong><br><small>${dayDateLabel(index)}</small></td><td>${shift === 'LIBRE' ? 'Libre' : escapeHtml(shiftDescription(shift))}</td><td>${formatNumber(shiftHours(shift))} h</td></tr>`;
   }).join('');
-  $('#individual-report-content').innerHTML = `<div class="individual-summary"><div><span>Cargo</span><strong>${escapeHtml(employee.role || 'General')}</strong></div><div><span>Contrato</span><strong>${formatNumber(employee.hours)} h</strong></div><div><span>Esta semana</span><strong>${formatNumber(assignedHours(employee.id))} h</strong></div><div><span>Historial</span><strong>${formatNumber(stats.hours)} h · ${stats.closings} cierres</strong></div></div><table class="individual-schedule"><thead><tr><th>Día</th><th>Turno</th><th>Trabajo</th></tr></thead><tbody>${rows}</tbody></table>`;
+  $('#individual-report-content').innerHTML = `<div class="individual-summary"><div><span>Cargo</span><strong>${escapeHtml(normalizeEmployeeRole(employee.role))}</strong></div><div><span>Contrato</span><strong>${formatNumber(employee.hours)} h</strong></div><div><span>Esta semana</span><strong>${formatNumber(assignedHours(employee.id))} h</strong></div><div><span>Historial</span><strong>${formatNumber(stats.hours)} h · ${stats.closings} cierres</strong></div></div><table class="individual-schedule"><thead><tr><th>Día</th><th>Turno</th><th>Trabajo</th></tr></thead><tbody>${rows}</tbody></table>`;
 }
 
 function openIndividualReport() {
@@ -1025,7 +1033,7 @@ function openIndividualReport() {
     toast('Agrega un trabajador antes de abrir la vista individual.');
     return;
   }
-  $('#individual-employee').innerHTML = state.employees.map((employee) => `<option value="${employee.id}">${escapeHtml(employee.name)} · ${escapeHtml(employee.role || 'General')}</option>`).join('');
+  $('#individual-employee').innerHTML = state.employees.map((employee) => `<option value="${employee.id}">${escapeHtml(employee.name)} · ${escapeHtml(normalizeEmployeeRole(employee.role))}</option>`).join('');
   renderIndividualReport();
   $('#individual-dialog').showModal();
 }
@@ -1038,7 +1046,7 @@ function printIndividualReport() {
     toast('El navegador bloqueó la ventana de impresión.');
     return;
   }
-  popup.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Horario de ${escapeHtml(employee.name)}</title><style>body{font-family:Arial;padding:28px;color:#172019}h1{margin-bottom:4px}p{color:#68736b}.individual-summary{display:grid;grid-template-columns:repeat(4,1fr);border:1px solid #ddd}.individual-summary div{padding:10px}.individual-summary span{display:block;font-size:9px;text-transform:uppercase;color:#68736b}.individual-summary strong{display:block;margin-top:4px}table{width:100%;border-collapse:collapse;margin-top:16px}th{background:#195c3b;color:white}th,td{border:1px solid #ccc;padding:8px;text-align:left}</style></head><body><h1>${escapeHtml(employee.name)}</h1><p>${escapeHtml(employee.rut)} · ${escapeHtml(employee.role || 'General')} · Semana ${escapeHtml(weekLabel())}</p>${$('#individual-report-content').innerHTML}</body></html>`);
+  popup.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Horario de ${escapeHtml(employee.name)}</title><style>body{font-family:Arial;padding:28px;color:#172019}h1{margin-bottom:4px}p{color:#68736b}.individual-summary{display:grid;grid-template-columns:repeat(4,1fr);border:1px solid #ddd}.individual-summary div{padding:10px}.individual-summary span{display:block;font-size:9px;text-transform:uppercase;color:#68736b}.individual-summary strong{display:block;margin-top:4px}table{width:100%;border-collapse:collapse;margin-top:16px}th{background:#195c3b;color:white}th,td{border:1px solid #ccc;padding:8px;text-align:left}</style></head><body><h1>${escapeHtml(employee.name)}</h1><p>${escapeHtml(employee.rut)} · ${escapeHtml(normalizeEmployeeRole(employee.role))} · Semana ${escapeHtml(weekLabel())}</p>${$('#individual-report-content').innerHTML}</body></html>`);
   popup.document.close();
   popup.focus();
   setTimeout(() => popup.print(), 250);

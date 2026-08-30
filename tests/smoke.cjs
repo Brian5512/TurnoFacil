@@ -35,14 +35,14 @@ vm.runInContext(`
     strategy: 'coverage',
     history: {},
     coverageRules: [
-      { id: 1, day: 'Sábado', start: '09:00', end: '20:00', needed: 1, role: 'General' },
-      { id: 2, day: 'Domingo', start: '09:00', end: '20:00', needed: 1, role: 'General' }
+      { id: 1, day: 'Sábado', start: '09:00', end: '20:00', needed: 1, role: 'Crew' },
+      { id: 2, day: 'Domingo', start: '09:00', end: '20:00', needed: 1, role: 'Crew' }
     ],
     employees: [{
       id: 10,
       name: 'Prueba',
       rut: '12.345.678-5',
-      role: 'General',
+      role: 'Crew',
       hours: 20,
       overnight: true,
       availability: { Lunes:'X', Martes:'X', Miércoles:'X', Jueves:'X', Viernes:'X', Sábado:'09:00 - 01:00', Domingo:'09:00 - 23:00' }
@@ -60,13 +60,15 @@ const result = vm.runInContext(`({
   coverage: overallCoverage(),
   fridayOptions: shiftOptions({ ...state.employees[0], hours: 20, availability: { ...state.employees[0].availability, Viernes: 'COMPLETA' } }, 'Viernes', [10]).filter(option => option.hours === 10).map(option => option.value),
   validRut: isValidRut('12.345.678-5'),
-  alerts: (state.view = 'schedule', buildAlerts().length)
+  alerts: (state.view = 'schedule', buildAlerts().length),
+  migratedRoles: [normalizeEmployeeRole('General'), normalizeEmployeeRole('Crew-Master'), normalizeCoverageRole('Todos')]
 })`, context);
 
 assert.strictEqual(result.assigned, 20);
 assert.strictEqual(result.coverage, 100);
 assert.strictEqual(result.validRut, true);
 assert.strictEqual(result.alerts, 0);
+assert.deepStrictEqual(Array.from(result.migratedRoles), ['Crew', 'Crew-Master', 'Todos']);
 assert.strictEqual(result.fridayOptions.length, 11);
 assert.strictEqual(result.fridayOptions[0], '09:00 - 20:00');
 assert.strictEqual(result.fridayOptions.at(-1), '14:00 - 01:00');

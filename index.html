@@ -55,7 +55,7 @@
         <div class="form-grid employee-fields">
           <label class="field"><span>Nombre completo</span><input id="employee-name" name="name" autocomplete="off" required placeholder="Ej.: Trabajador 3" /></label>
           <label class="field"><span>RUT</span><input id="employee-rut" name="rut" autocomplete="off" required placeholder="Ingresa el RUT" /></label>
-          <label class="field"><span>Cargo o función</span><input id="employee-role" name="role" list="role-options" autocomplete="off" required value="General" placeholder="Ej.: Caja" /></label>
+          <label class="field"><span>Cargo o función</span><select id="employee-role" name="role" required><option value="Crew">Crew</option><option value="Crew-Master">Crew-Master</option></select></label>
           <label class="field"><span>Horas semanales</span><input id="employee-hours" name="hours" type="number" min="1" max="60" value="30" required /></label>
           <label class="check-field"><input id="employee-overnight" name="overnight" type="checkbox" /><span>¿Puede tener cierre hasta la 01:00?</span></label>
         </div>
@@ -75,7 +75,7 @@
           <label class="field"><span>Desde</span><select id="coverage-start" required></select></label>
           <label class="field"><span>Hasta</span><select id="coverage-end" required></select></label>
           <label class="field"><span>Personas necesarias</span><input id="coverage-needed" type="number" min="1" max="50" value="1" required /></label>
-          <label class="field"><span>Cargo requerido</span><input id="coverage-role" list="coverage-role-options" autocomplete="off" value="Todos" required /></label>
+          <label class="field"><span>Cargo requerido</span><select id="coverage-role" required><option value="Todos">Todos</option><option value="Crew">Crew</option><option value="Crew-Master">Crew-Master</option></select></label>
         </div>
         <div class="dialog-actions"><button type="button" id="cancel-coverage" class="button secondary">Cancelar</button><button type="submit" class="button primary">Guardar regla</button></div>
       </form>
@@ -91,8 +91,6 @@
         <div class="dialog-actions"><button type="button" id="cancel-individual" class="button secondary">Cerrar</button><button type="button" id="print-individual" class="button primary">Guardar ficha en PDF</button></div>
       </form>
     </dialog>
-    <datalist id="role-options"><option value="General"></option><option value="Caja"></option><option value="Cocina"></option><option value="Atención"></option><option value="Encargado"></option></datalist>
-    <datalist id="coverage-role-options"><option value="Todos"></option><option value="General"></option><option value="Caja"></option><option value="Cocina"></option><option value="Atención"></option><option value="Encargado"></option></datalist>
     <div id="toast" role="status"></div>
     <script src="js/app.js"></script>
   </body>
