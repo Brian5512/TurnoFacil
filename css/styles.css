@@ -16,8 +16,8 @@ button { cursor:pointer; }
 h1 { margin:5px 0 3px; font-size:30px; letter-spacing:-.7px; }
 .intro p { margin:0; color:var(--muted); font-size:14px; }
 .actions { display:flex; gap:8px; align-items:center; flex-wrap:wrap; justify-content:flex-end; }
-.actions input,.cell-input,.hours-input,.person-input,.shift-select,.field input,.availability-row select,.time-fields input { border:1px solid #d7ded4; border-radius:8px; background:white; color:var(--ink); outline:none; }
-.actions input:focus,.cell-input:focus,.hours-input:focus,.person-input:focus,.shift-select:focus,.field input:focus,.availability-row select:focus,.time-fields input:focus { border-color:#4b8b68; box-shadow:0 0 0 3px #4b8b681f; }
+.actions input,.cell-input,.hours-input,.person-input,.shift-select,.field input,.availability-row select,.time-fields select,.availability-time-select { border:1px solid #d7ded4; border-radius:8px; background:white; color:var(--ink); outline:none; }
+.actions input:focus,.cell-input:focus,.hours-input:focus,.person-input:focus,.shift-select:focus,.field input:focus,.availability-row select:focus,.time-fields select:focus,.availability-time-select:focus { border-color:#4b8b68; box-shadow:0 0 0 3px #4b8b681f; }
 .actions input { height:40px; padding:0 10px; }
 .button { height:40px; border-radius:9px; padding:0 14px; border:1px solid transparent; font-size:13px; font-weight:700; transition:.15s; }
 .button:hover { transform:translateY(-1px); }
@@ -36,11 +36,11 @@ h1 { margin:5px 0 3px; font-size:30px; letter-spacing:-.7px; }
 .tab { height:35px; padding:0 16px; border:0; border-radius:7px; background:transparent; color:#6d786f; font-size:13px; font-weight:700; }
 .tab.active { background:white; color:var(--green); box-shadow:0 1px 5px #26372b17; }
 .table-wrap { overflow:auto; max-height:calc(100vh - 395px); min-height:300px; }
-table { width:100%; min-width:1180px; border-collapse:separate; border-spacing:0; font-size:12px; }
+table { width:100%; min-width:1340px; border-collapse:separate; border-spacing:0; font-size:12px; }
 th { position:sticky; top:0; z-index:5; height:45px; padding:8px; border-left:1px solid #ffffff26; background:var(--green); color:white; font-size:11px; letter-spacing:.06em; text-transform:uppercase; text-align:center; }
 th:first-child { left:0; z-index:8; min-width:240px; padding-left:15px; text-align:left; }
 th.hours { width:75px; }
-th.day { min-width:127px; }
+th.day { min-width:150px; }
 th.overnight { width:90px; }
 th.remove { width:44px; }
 td { height:54px; padding:6px; border-left:1px solid #e7ebe5; border-bottom:1px solid #e7ebe5; text-align:center; background:white; }
@@ -52,6 +52,11 @@ tr:nth-child(even) td.person { background:#fafbf9; }
 .hours-input { width:58px; height:33px; padding:4px; text-align:center; font-weight:700; }
 .cell-input { width:100%; min-width:112px; height:33px; padding:4px 6px; color:#315d46; font-size:11px; font-weight:700; text-align:center; }
 .cell-input.unavailable { border-color:#eadbd2; background:#fff4ee; color:#a04a22; }
+.availability-controls { display:grid; gap:4px; min-width:136px; }
+.availability-line { display:grid; grid-template-columns:35px minmax(0,1fr); gap:4px; align-items:center; color:#7b867e; font-size:9px; font-weight:700; text-align:left; }
+.availability-time-select { width:100%; min-width:0; height:28px; padding:2px 5px; color:#315d46; font-size:10px; font-weight:700; }
+.availability-time-select.unavailable { border-color:#eadbd2; background:#fff4ee; color:#a04a22; }
+.availability-time-select:disabled { background:#f2f3f0; color:#a2aaa4; cursor:not-allowed; }
 .shift { display:flex; align-items:center; justify-content:center; min-height:33px; border-radius:7px; padding:4px 6px; background:#e7f3eb; color:#246344; font-weight:700; }
 .shift.off { background:#f1f2ef; color:#8b918c; }
 .shift-select { width:100%; min-width:116px; height:35px; padding:4px 7px; background:#e7f3eb; color:#246344; font-size:11px; font-weight:700; }
@@ -87,10 +92,10 @@ tr:nth-child(even) td.person { background:#fafbf9; }
 .availability-row select { height:34px; padding:0 8px; font-size:12px; }
 .time-fields { display:flex; align-items:center; gap:10px; }
 .time-fields label { display:flex; align-items:center; gap:6px; color:#6e7a71; font-size:11px; }
-.time-fields input { height:34px; padding:0 7px; font-size:12px; }
+.time-fields select { min-width:104px; height:34px; padding:0 7px; font-size:12px; }
 .dialog-actions { display:flex; justify-content:flex-end; gap:8px; margin-top:22px; padding-top:16px; border-top:1px solid #e6eae4; }
 #toast { position:fixed; right:24px; bottom:24px; opacity:0; transform:translateY(8px); pointer-events:none; border-radius:10px; background:#183d29; color:white; padding:11px 15px; font-size:13px; box-shadow:0 8px 30px #132e2055; transition:.2s; }
 #toast.show { opacity:1; transform:translateY(0); }
 @media (max-width:1150px) { .intro { align-items:flex-start; flex-direction:column; } .actions { justify-content:flex-start; } .table-wrap { max-height:calc(100vh - 460px); } }
 @media (max-width:720px) { .form-grid { grid-template-columns:1fr; } .check-field { grid-column:auto; } .availability-row { grid-template-columns:100px 1fr; } .time-fields { grid-column:1/-1; padding-bottom:5px; } }
-@media print { .topbar,.actions,.metrics,.panel-toolbar,.hint,.remove-cell { display:none !important; } body,.workspace { background:white; min-width:0; } .workspace { padding:0; } .intro { margin-bottom:12px; } .intro p,.eyebrow { display:none; } h1 { font-size:20px; } .panel { border:0; box-shadow:none; } .table-wrap { overflow:visible; max-height:none; } table { min-width:100%; font-size:8px; } th { position:static; height:30px; font-size:7px; } td { height:34px; padding:2px; } td.person { position:static; min-width:145px; } .person-input,.hours-input,.cell-input { border:0; box-shadow:none; font-size:8px; height:18px; } .person-input.rut { height:14px; font-size:7px; } .shift { min-height:18px; font-size:7px; } }
+@media print { .topbar,.actions,.metrics,.panel-toolbar,.hint,.remove-cell { display:none !important; } body,.workspace { background:white; min-width:0; } .workspace { padding:0; } .intro { margin-bottom:12px; } .intro p,.eyebrow { display:none; } h1 { font-size:20px; } .panel { border:0; box-shadow:none; } .table-wrap { overflow:visible; max-height:none; } table { min-width:100%; font-size:8px; } th { position:static; height:30px; font-size:7px; } td { height:34px; padding:2px; } td.person { position:static; min-width:145px; } .person-input,.hours-input,.cell-input,.availability-time-select { border:0; box-shadow:none; font-size:8px; height:18px; } .availability-line { grid-template-columns:25px 1fr; font-size:7px; } .person-input.rut { height:14px; font-size:7px; } .shift { min-height:18px; font-size:7px; } }

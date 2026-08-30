@@ -47,6 +47,13 @@ function formatTime(minutes) {
   return `${String(Math.floor(normalized / 60)).padStart(2, '0')}:${String(normalized % 60).padStart(2, '0')}`;
 }
 
+const timeValues = Array.from({ length: 48 }, (_, index) => formatTime(index * 30));
+
+function timeOptionsHtml(selected = '', includePlaceholder = false) {
+  const placeholder = includePlaceholder ? '<option value="">Selecciona</option>' : '';
+  return `${placeholder}${timeValues.map((time) => `<option value="${time}" ${time === selected ? 'selected' : ''}>${time}</option>`).join('')}`;
+}
+
 function parseWindow(value) {
   const match = String(value).match(/(\d{1,2}:\d{2})\s*-\s*(\d{1,2}:\d{2})/);
   if (!match) return null;
@@ -54,6 +61,15 @@ function parseWindow(value) {
   let end = parseTime(match[2]);
   if (end <= start) end += 1440;
   return { start, end, capacity: (end - start) / 60 };
+}
+
+function availabilityParts(value) {
+  const normalized = String(value || '').trim().toUpperCase();
+  if (normalized === 'COMPLETA') return { mode: 'complete', start: 'COMPLETA', end: '' };
+  if (!normalized || normalized === 'X') return { mode: 'unavailable', start: 'X', end: '' };
+  const window = parseWindow(normalized);
+  if (!window) return { mode: 'unavailable', start: 'X', end: '' };
+  return { mode: 'range', start: formatTime(window.start), end: formatTime(window.end) };
 }
 
 function shiftHours(value) {
@@ -164,6 +180,8 @@ function renderTable() {
   const body = state.employees.length ? state.employees.map(rowHtml).join('') : '<tr><td colspan="11" class="empty-row">No hay trabajadores. Usa “Agregar trabajador” para comenzar.</td></tr>';
   table.innerHTML = `<thead><tr><th>Trabajador</th><th class="hours">${state.view === 'schedule' ? 'Asignadas' : 'Horas'}</th>${days.map((day) => `<th class="day">${day}</th>`).join('')}<th class="overnight">Trasnoche</th><th class="remove"></th></tr></thead><tbody>${body}</tbody>`;
   table.querySelectorAll('[data-field]').forEach((input) => input.addEventListener('change', onCellChange));
+  table.querySelectorAll('[data-action="availability-start"]').forEach((select) => select.addEventListener('change', onAvailabilityStartChange));
+  table.querySelectorAll('[data-action="availability-end"]').forEach((select) => select.addEventListener('change', onAvailabilityEndChange));
   table.querySelectorAll('[data-action="shift"]').forEach((select) => select.addEventListener('change', onShiftChange));
   table.querySelectorAll('[data-action="overnight"]').forEach((button) => button.addEventListener('click', toggleOvernight));
   table.querySelectorAll('[data-action="delete"]').forEach((button) => button.addEventListener('click', deleteEmployee));
@@ -175,9 +193,9 @@ function rowHtml(employee, index) {
   const hoursClass = Math.abs(hoursDifference) < 0.01 ? 'hours-ok' : 'hours-warning';
   const dayCells = days.map((day) => {
     if (state.view === 'availability') {
-      const value = employee.availability[day] || '';
-      const unavailable = !value || value === 'X';
-      return `<td><input class="cell-input ${unavailable ? 'unavailable' : ''}" data-id="${employee.id}" data-day="${day}" data-field="availability" value="${escapeHtml(value)}" aria-label="${escapeHtml(employee.name)}, ${day}" /></td>`;
+      const availability = availabilityParts(employee.availability[day]);
+      const startClass = availability.mode === 'unavailable' ? 'unavailable' : '';
+      return `<td><div class="availability-controls"><label class="availability-line"><span>Desde</span><select class="availability-time-select ${startClass}" data-id="${employee.id}" data-day="${day}" data-action="availability-start" aria-label="Hora de inicio de ${escapeHtml(employee.name)} para ${day}"><option value="COMPLETA" ${availability.start === 'COMPLETA' ? 'selected' : ''}>Completa</option><option value="X" ${availability.start === 'X' ? 'selected' : ''}>No disponible</option><optgroup label="Horas">${timeOptionsHtml(availability.mode === 'range' ? availability.start : '')}</optgroup></select></label><label class="availability-line"><span>Hasta</span><select class="availability-time-select availability-end" data-id="${employee.id}" data-day="${day}" data-action="availability-end" aria-label="Hora de término de ${escapeHtml(employee.name)} para ${day}" ${availability.mode !== 'range' ? 'disabled' : ''}>${timeOptionsHtml(availability.end, true)}</select></label></div></td>`;
     }
     const current = state.schedule[employee.id]?.[day] || 'LIBRE';
     const options = shiftOptions(employee, day);
@@ -193,7 +211,7 @@ function rowHtml(employee, index) {
 }
 
 function renderAvailabilityForm() {
-  $('#availability-form').innerHTML = days.map((day) => `<div class="availability-row" data-form-day="${day}"><strong>${day}</strong><select class="availability-mode" aria-label="Disponibilidad de ${day}"><option value="complete">Completa</option><option value="range">Rango horario</option><option value="unavailable">No disponible</option></select><div class="time-fields" hidden><label>Desde <input class="start-time" type="time" value="09:00" /></label><label>Hasta <input class="end-time" type="time" value="18:00" /></label></div></div>`).join('');
+  $('#availability-form').innerHTML = days.map((day) => `<div class="availability-row" data-form-day="${day}"><strong>${day}</strong><select class="availability-mode" aria-label="Disponibilidad de ${day}"><option value="complete">Completa</option><option value="range">Rango horario</option><option value="unavailable">No disponible</option></select><div class="time-fields" hidden><label>Desde <select class="start-time" aria-label="Hora de inicio de ${day}">${timeOptionsHtml('09:00')}</select></label><label>Hasta <select class="end-time" aria-label="Hora de término de ${day}">${timeOptionsHtml('18:00')}</select></label></div></div>`).join('');
   $$('.availability-mode').forEach((select) => select.addEventListener('change', () => {
     const row = select.closest('.availability-row');
     row.querySelector('.time-fields').hidden = select.value !== 'range';
@@ -254,10 +272,45 @@ function onCellChange(event) {
   const employee = state.employees.find((item) => item.id === Number(event.target.dataset.id));
   if (!employee) return;
   const field = event.target.dataset.field;
-  if (field === 'availability') employee.availability[event.target.dataset.day] = event.target.value.trim().toUpperCase();
-  else if (field === 'hours') employee.hours = Number(event.target.value);
+  if (field === 'hours') employee.hours = Number(event.target.value);
   else if (field === 'rut') employee.rut = formatRut(event.target.value);
   else employee[field] = event.target.value;
+  state.schedule = {};
+  save();
+  render();
+}
+
+function onAvailabilityStartChange(event) {
+  const employee = state.employees.find((item) => item.id === Number(event.target.dataset.id));
+  if (!employee) return;
+  const day = event.target.dataset.day;
+  const start = event.target.value;
+  if (start === 'COMPLETA' || start === 'X') {
+    employee.availability[day] = start;
+  } else {
+    const current = availabilityParts(employee.availability[day]);
+    let previousDuration = current.mode === 'range' ? parseTime(current.end) - parseTime(start) : 0;
+    if (previousDuration <= 0) previousDuration += 1440;
+    const canKeepEnd = current.mode === 'range' && current.end !== start && previousDuration <= 16 * 60;
+    const end = canKeepEnd ? current.end : formatTime(parseTime(start) + 8 * 60);
+    employee.availability[day] = `${start} - ${end}`;
+  }
+  state.schedule = {};
+  save();
+  render();
+}
+
+function onAvailabilityEndChange(event) {
+  const employee = state.employees.find((item) => item.id === Number(event.target.dataset.id));
+  if (!employee || !event.target.value) return;
+  const day = event.target.dataset.day;
+  const current = availabilityParts(employee.availability[day]);
+  if (current.mode !== 'range' || current.start === event.target.value) {
+    toast('La hora de término debe ser distinta de la hora de inicio.');
+    render();
+    return;
+  }
+  employee.availability[day] = `${current.start} - ${event.target.value}`;
   state.schedule = {};
   save();
   render();
