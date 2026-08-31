@@ -479,7 +479,7 @@ function renderTable() {
   table.className = '';
   const body = state.employees.length ? state.employees.map(rowHtml).join('') : '<tr><td colspan="11" class="empty-row">No hay trabajadores. Usa “Agregar trabajador” para comenzar.</td></tr>';
   const today = localDateValue(new Date());
-  table.innerHTML = `<thead><tr><th>Trabajador y cargo</th><th class="hours">${state.view === 'schedule' ? 'Asignadas' : 'Horas'}</th>${days.map((day, index) => `<th class="day ${localDateValue(dateForDay(index)) === today ? 'today' : ''}"><span>${day}</span><small>${dayDateLabel(index)} | 09:00 a ${closingDisplay(day)}</small></th>`).join('')}<th class="overnight">Cierre hasta 01:00</th><th class="remove"></th></tr></thead><tbody>${body}</tbody>`;
+  table.innerHTML = `<thead><tr><th>Trabajador y cargo</th><th class="hours">${state.view === 'schedule' ? 'Asignadas' : 'Horas'}</th>${days.map((day, index) => `<th class="day ${localDateValue(dateForDay(index)) === today ? 'today' : ''}"><span>${day}</span><small><span class="day-date">${dayDateLabel(index)}</span><span class="day-window">09:00 a ${closingDisplay(day)}</span></small></th>`).join('')}<th class="overnight">Cierre hasta 01:00</th><th class="remove"></th></tr></thead><tbody>${body}</tbody>`;
   table.querySelectorAll('[data-field]').forEach((input) => input.addEventListener('change', onCellChange));
   table.querySelectorAll('[data-action="availability-start"]').forEach((select) => select.addEventListener('change', onAvailabilityStartChange));
   table.querySelectorAll('[data-action="availability-end"]').forEach((select) => select.addEventListener('change', onAvailabilityEndChange));
