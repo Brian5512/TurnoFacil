@@ -10,20 +10,20 @@
     <meta property="og:image" content="https://brian5512.github.io/TurnoFacil/assets/og.png" />
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://brian5512.github.io/TurnoFacil/" />
-    <link rel="stylesheet" href="css/styles.css?v=7" />
+    <link rel="stylesheet" href="css/styles.css?v=8" />
   </head>
   <body>
     <header class="topbar">
       <div class="brand">
         <div class="brand-mark" aria-hidden="true">TF</div>
-        <div class="brand-copy"><strong>TurnoFácil</strong><small>Planificación de turnos</small></div>
+        <div class="brand-copy"><strong>TurnoFácil</strong><small>Control semanal</small></div>
       </div>
       <div class="save-indicator"><span class="save-dot" aria-hidden="true"></span><span id="save-state" class="save-state">Guardado automático</span></div>
     </header>
     <main class="workspace">
       <section class="command-center">
         <div class="intro">
-          <div class="intro-copy"><h1 id="week-title">Horario semanal</h1><p>Disponibilidad, recomendaciones y horas contratadas en una sola vista.</p></div>
+          <div class="intro-copy"><h1 id="week-title">Horario semanal</h1><p>Organiza el equipo completo sin perder de vista horas, disponibilidad y cierres.</p></div>
           <div class="actions">
           <div class="week-navigation" aria-label="Navegación semanal">
             <button id="previous-week" class="icon-button previous" type="button" aria-label="Semana anterior"><span class="sr-only">Semana anterior</span></button>
@@ -34,16 +34,16 @@
           <button id="generate" class="button primary">Generar horario</button>
           </div>
         </div>
+        <section id="metrics" class="metrics" aria-label="Resumen de la semana"></section>
         <div class="utility-bar" aria-label="Herramientas del horario">
           <div class="utility-group"><span class="utility-label">Semana</span><button id="copy-previous" class="text-button">Copiar anterior</button><button id="individual-report" class="text-button">Vista individual</button></div>
           <div class="utility-group"><span class="utility-label">Archivos</span><button id="export-backup" class="text-button">Respaldar</button><button id="import-backup" class="text-button">Importar</button><input id="backup-file" type="file" accept="application/json,.json" hidden /><button id="export" class="text-button">Excel</button><button id="print" class="text-button">PDF e imprimir</button></div>
         </div>
       </section>
-      <section id="metrics" class="metrics"></section>
       <section id="alerts-panel" class="alerts-panel" aria-live="polite"></section>
       <section class="panel">
         <div class="panel-toolbar">
-          <div><div class="tabs" role="tablist" aria-label="Vista del planificador"><button data-view="availability" class="tab active" role="tab" aria-selected="true" aria-controls="schedule-table">Disponibilidades</button><button data-view="schedule" class="tab" role="tab" aria-selected="false" aria-controls="schedule-table">Horario generado</button></div></div>
+          <div class="panel-heading"><h2>Planificación del equipo</h2><div class="tabs" role="tablist" aria-label="Vista del planificador"><button data-view="availability" class="tab active" role="tab" aria-selected="true" aria-controls="schedule-table">Disponibilidades</button><button data-view="schedule" class="tab" role="tab" aria-selected="false" aria-controls="schedule-table">Horario generado</button></div></div>
           <div class="panel-actions"><button id="open-add" class="button add-worker">Agregar trabajador</button></div>
         </div>
         <div class="table-wrap"><table id="schedule-table"></table></div>
@@ -80,6 +80,6 @@
       </form>
     </dialog>
     <div id="toast" role="status"></div>
-    <script src="js/app.js?v=7"></script>
+    <script src="js/app.js?v=8"></script>
   </body>
 </html>
