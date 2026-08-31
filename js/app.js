@@ -955,3 +955,8 @@ $$('.tab').forEach((tab) => tab.addEventListener('click', () => { state.view = t
 load();
 enforceClosingLimits();
 render();
+
+if ('scrollRestoration' in window.history) window.history.scrollRestoration = 'manual';
+const resetInitialScroll = () => window.requestAnimationFrame(() => window.scrollTo({ top: 0, left: 0, behavior: 'auto' }));
+window.addEventListener('pageshow', resetInitialScroll);
+resetInitialScroll();
