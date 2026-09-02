@@ -216,17 +216,15 @@ function shiftDescription(value, note = '') {
   return `${formatTime(window.start)} a ${formatTime(window.end)} | ${formatNumber(shiftHours(value))} h trabajo + 1 h colación${suffix}`;
 }
 
-function workPattern(employee) {
+function suggestedShiftHours(employee) {
   const weeklyHours = Number(employee.hours || 0);
-  if (weeklyHours === 30) return { code: '5x2', workDays: 5, restDays: 2, dailyHours: 6, allowedDays: days };
-  if (weeklyHours === 20) return { code: '4x3', workDays: 4, restDays: 3, dailyHours: 5, allowedDays: days };
-  if (weeklyHours === 16) return { code: 'Fin de semana', workDays: 2, restDays: 5, dailyHours: 8, allowedDays: ['Sábado', 'Domingo'], weekendOnly: true };
-  return null;
+  if (weeklyHours === 30) return 6;
+  if (weeklyHours === 20) return 5;
+  if (weeklyHours === 16) return 8;
+  return Math.min(8, weeklyHours || 8);
 }
 
 function scheduleWindow(employee, day) {
-  const pattern = workPattern(employee);
-  if (pattern && !pattern.allowedDays.includes(day)) return null;
   const end = employee.overnight ? closingMinutes(day) : Math.min(closingMinutes(day), 1440);
   return { start: 0, end, capacity: end / 60, ranged: false };
 }
@@ -305,13 +303,8 @@ function assignedHours(employeeId) {
   return days.reduce((sum, day) => sum + shiftHours(state.schedule[employeeId]?.[day]), 0);
 }
 
-function followsWorkPattern(employee) {
-  const pattern = workPattern(employee);
-  if (!pattern) return Math.abs(assignedHours(employee.id) - Number(employee.hours || 0)) < 0.01;
-  const usedDays = days.filter((day) => shiftHours(state.schedule[employee.id]?.[day]) > 0);
-  return Math.abs(assignedHours(employee.id) - Number(employee.hours || 0)) < 0.01
-    && usedDays.length === pattern.workDays
-    && usedDays.every((day) => pattern.allowedDays.includes(day));
+function matchesContractHours(employee) {
+  return Math.abs(assignedHours(employee.id) - Number(employee.hours || 0)) < 0.01;
 }
 
 function isValidRut(value) {
@@ -333,12 +326,9 @@ function buildAlerts() {
   const alerts = [];
   state.employees.forEach((employee) => {
     if (!isValidRut(employee.rut)) alerts.push({ type: 'data', text: `${employee.name}: RUT pendiente o inválido.` });
-    if (state.view !== 'availability' && state.schedule[employee.id] && !followsWorkPattern(employee)) {
-      const pattern = workPattern(employee);
+    if (state.view !== 'availability' && state.schedule[employee.id] && !matchesContractHours(employee)) {
       const assigned = assignedHours(employee.id);
-      const usedDays = days.filter((day) => shiftHours(state.schedule[employee.id]?.[day]) > 0);
-      const dayStatus = pattern ? ` en ${usedDays.length}/${pattern.workDays} días (${pattern.code})` : '';
-      alerts.push({ type: 'warning', text: `${employee.name}: asignadas ${formatNumber(assigned)}/${formatNumber(employee.hours)} h${dayStatus}.` });
+      alerts.push({ type: 'warning', text: `${employee.name}: asignadas ${formatNumber(assigned)}/${formatNumber(employee.hours)} h.` });
     }
   });
   return alerts;
@@ -388,8 +378,6 @@ function rowHtml(employee, index) {
     : Math.abs(hoursDifference) < 0.01 ? 'hours-ok' : 'hours-warning';
   const dayCells = days.map((day) => {
     if (state.view === 'availability') {
-      const pattern = workPattern(employee);
-      if (pattern?.weekendOnly && !pattern.allowedDays.includes(day)) return `<td class="day-cell" data-label="${day}"><div class="weekend-only"><strong>Descanso</strong><span>Solo fin de semana</span></div></td>`;
       const availability = availabilityParts(employee.availability[day]);
       const startClass = availability.mode === 'unavailable' ? 'unavailable' : '';
       return `<td class="day-cell" data-label="${day}"><div class="availability-controls"><label class="availability-line"><span>Desde</span><select class="availability-time-select ${startClass}" data-id="${employee.id}" data-day="${day}" data-action="availability-start" aria-label="Hora de inicio de ${escapeHtml(employee.name)} para ${day}"><option value="COMPLETA" ${availability.start === 'COMPLETA' ? 'selected' : ''}>Completa</option><option value="X" ${availability.start === 'X' ? 'selected' : ''}>No disponible</option><optgroup label="Horas">${startTimeOptionsHtml(day, availability.mode === 'range' ? availability.start : '')}</optgroup></select></label><label class="availability-line"><span>Hasta</span><select class="availability-time-select availability-end" data-id="${employee.id}" data-day="${day}" data-action="availability-end" aria-label="Hora de término de ${escapeHtml(employee.name)} para ${day}" ${availability.mode !== 'range' ? 'disabled' : ''}>${endTimeOptionsHtml(day, availability.mode === 'range' ? availability.start : '', availability.end)}</select></label></div></td>`;
@@ -551,8 +539,7 @@ function onAvailabilityEndChange(event) {
 
 function validShiftOptionsForStart(employee, day, start) {
   return shiftOptions(employee, day)
-    .filter((option) => option.value !== 'LIBRE' && formatTime(parseWindow(option.value).start) === start)
-    .filter((option) => !contractAssignmentMessage(employee, day, option.value));
+    .filter((option) => option.value !== 'LIBRE' && formatTime(parseWindow(option.value).start) === start);
 }
 
 function onShiftStartChange(event) {
@@ -568,7 +555,7 @@ function onShiftStartChange(event) {
     return;
   }
   const currentHours = shiftHours(state.schedule?.[id]?.[day]);
-  const targetHours = currentHours || workPattern(employee)?.dailyHours || Math.min(8, Number(employee.hours || 8));
+  const targetHours = currentHours || suggestedShiftHours(employee);
   candidates.sort((a, b) => Math.abs(a.hours - targetHours) - Math.abs(b.hours - targetHours) || a.hours - b.hours);
   state.schedule[id] ??= emptyDays();
   state.schedule[id][day] = candidates[0].value;
@@ -608,17 +595,6 @@ function onShiftEndChange(event) {
 function assignmentValidationMessage(employee, day, value) {
   if (!value || value === 'LIBRE') return '';
   if (!shiftOptions(employee, day, [shiftHours(value)]).some((option) => option.value === value)) return 'Ese turno no respeta el horario permitido para ese día.';
-  return contractAssignmentMessage(employee, day, value);
-}
-
-function contractAssignmentMessage(employee, day, value) {
-  if (!value || value === 'LIBRE') return '';
-  const pattern = workPattern(employee);
-  if (!pattern) return '';
-
-  const projectedUsedDays = days.filter((item) => shiftHours(item === day ? value : state.schedule?.[employee.id]?.[item]) > 0);
-  if (projectedUsedDays.some((item) => !pattern.allowedDays.includes(item))) return `El contrato ${pattern.code} no permite trabajar ese día.`;
-  if (projectedUsedDays.length > pattern.workDays) return `El contrato ${pattern.code} requiere exactamente ${pattern.workDays} días trabajados.`;
   return '';
 }
 

@@ -51,7 +51,7 @@ vm.runInContext(`
 
 const result = vm.runInContext(`({
   assigned: assignedHours(10),
-  exactPattern: followsWorkPattern(state.employees[0]),
+  exactHours: matchesContractHours(state.employees[0]),
   validRut: isValidRut('12.345.678-5'),
   alerts: buildAlerts().length,
   firstScheduleTime: scheduleTimeValues[0],
@@ -68,7 +68,7 @@ const result = vm.runInContext(`({
 })`, context);
 
 assert.strictEqual(result.assigned, 20);
-assert.strictEqual(result.exactPattern, true);
+assert.strictEqual(result.exactHours, true);
 assert.strictEqual(result.validRut, true);
 assert.strictEqual(result.alerts, 0);
 assert.strictEqual(result.firstScheduleTime, '00:00');
@@ -113,41 +113,49 @@ assert.strictEqual(overContract.assigned, 23);
 assert.strictEqual(overContract.highlighted, true);
 assert.strictEqual(appSource.includes('El turno supera las'), false);
 
-const exactPatterns = vm.runInContext(`(() => {
+const flexibleDays = vm.runInContext(`(() => {
   const employee30 = { ...state.employees[0], id: 20, hours: 30, availability: complete() };
   state.employees.push(employee30);
   state.schedule[20] = emptyDays();
   ['Lunes','Martes','Miércoles','Jueves','Viernes'].forEach(day => { state.schedule[20][day] = '09:00 - 16:00'; });
-  const exact30 = followsWorkPattern(employee30);
+  const exact30 = matchesContractHours(employee30);
   ['Lunes','Martes','Miércoles','Jueves','Viernes'].forEach(day => { state.schedule[20][day] = '09:00 - 11:00'; });
-  const sixthDayError = assignmentValidationMessage(employee30, 'Sábado', '09:00 - 11:00');
+  const sixthDayMessage = assignmentValidationMessage(employee30, 'Sábado', '09:00 - 11:00');
 
   const employee16 = { ...state.employees[0], id: 21, hours: 16, availability: complete() };
   state.employees.push(employee16);
   state.schedule[21] = emptyDays();
   state.schedule[21].Sábado = '09:00 - 18:00';
   state.schedule[21].Domingo = '09:00 - 18:00';
+  const previousView = state.view;
+  state.view = 'availability';
+  const availabilityFields16 = (rowHtml(employee16).match(/data-action="availability-start"/g) || []).length;
+  state.view = previousView;
   return {
     exact30,
-    sixthDayError,
-    exact16: followsWorkPattern(employee16),
-    mondayOptions16: shiftOptions(employee16, 'Lunes').length
+    sixthDayMessage,
+    exact16: matchesContractHours(employee16),
+    mondayShiftMessage16: assignmentValidationMessage(employee16, 'Lunes', '09:00 - 18:00'),
+    mondayOptions16: shiftOptions(employee16, 'Lunes').length,
+    availabilityFields16
   };
 })()`, context);
-assert.strictEqual(exactPatterns.exact30, true);
-assert.ok(exactPatterns.sixthDayError.includes('exactamente 5 días'));
-assert.strictEqual(exactPatterns.exact16, true);
-assert.strictEqual(exactPatterns.mondayOptions16, 1);
+assert.strictEqual(flexibleDays.exact30, true);
+assert.strictEqual(flexibleDays.sixthDayMessage, '');
+assert.strictEqual(flexibleDays.exact16, true);
+assert.strictEqual(flexibleDays.mondayShiftMessage16, '');
+assert.ok(flexibleDays.mondayOptions16 > 1);
+assert.strictEqual(flexibleDays.availabilityFields16, 7);
 
-const wrongDayCountAlert = vm.runInContext(`(() => {
+const flexibleDayDistributionAlerts = vm.runInContext(`(() => {
   const employee = { ...state.employees[0], id: 30, availability: { ...complete() } };
   state.employees = [employee];
   state.schedule = { 30: emptyDays() };
   state.schedule[30].Sábado = '09:00 - 20:00';
   state.schedule[30].Domingo = '09:00 - 20:00';
-  return buildAlerts()[0].text;
+  return buildAlerts().length;
 })()`, context);
-assert.ok(wrongDayCountAlert.includes('20/20 h en 2/4 días (4x3)'));
+assert.strictEqual(flexibleDayDistributionAlerts, 0);
 
 const saturdayOptions = vm.runInContext(`
   shiftOptions({ ...state.employees[0], overnight: true, availability: complete() }, 'Sábado').filter(option => option.hours === 10).map(option => option.value);
@@ -179,4 +187,4 @@ const historyHours = vm.runInContext(`
 `, context);
 assert.strictEqual(historyHours, 20);
 
-console.log(JSON.stringify({ result, informationalAvailability, exactPatterns, wrongDayCountAlert, freeDayResult }, null, 2));
+console.log(JSON.stringify({ result, informationalAvailability, flexibleDays, flexibleDayDistributionAlerts, freeDayResult }, null, 2));

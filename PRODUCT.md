@@ -12,7 +12,7 @@ La persona encargada de organizar los turnos de un equipo en Chile. Trabaja prin
 
 1. Registrar trabajadores con nombre, RUT, cargo, horas semanales y permiso de cierre.
 2. Definir disponibilidad por día mediante una jornada completa, un rango de inicio y fin o no disponibilidad.
-3. Asignar cada turno manualmente respetando los días del contrato y las reglas de jornada, usando la disponibilidad solo como referencia.
+3. Asignar cada turno manualmente respetando las reglas operacionales de cierre, usando la disponibilidad solo como referencia.
 4. Revisar las alertas de horas pendientes y ajustar la semana.
 5. Guardar historial, respaldar datos y exportar el resultado a Excel o PDF.
 
@@ -20,10 +20,9 @@ La persona encargada de organizar los turnos de un equipo en Chile. Trabaja prin
 
 - La interfaz y los mensajes están en español.
 - Los cargos disponibles son Crew y Crew-Master.
-- Los contratos de 30 horas deben completar exactamente 5 días de trabajo y 2 de descanso (5x2).
-- Los contratos de 20 horas deben completar exactamente 4 días de trabajo y 3 de descanso (4x3).
+- La distribución 5x2 o 4x3 sirve únicamente como referencia y no bloquea días de trabajo adicionales o distintos.
 - La disponibilidad es informativa para el administrador y no bloquea la asignación manual.
-- Los contratos de 16 horas trabajan solo fines de semana.
+- Los contratos de 16 horas pueden asignarse cualquier día cuando sea necesario.
 - Cada turno suma una hora de colación a las horas efectivamente trabajadas.
 - Los selectores manuales permiten comenzar desde las 00:00.
 - Lunes a jueves y domingo cierran a las 23:00.
