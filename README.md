@@ -27,12 +27,12 @@ No requiere instalación ni conexión a Internet. Los datos se guardan automáti
 - Respetar los cierres operacionales: 23:00 de lunes a jueves y domingo; 01:00 del día siguiente viernes y sábado.
 - Aplicar jornadas por contrato: 30 horas en 5x2 (5 días de 6 horas), 20 horas en 4x3 (4 días de 5 horas) y 16 horas solamente sábado y domingo (2 días de 8 horas).
 - Agregar una hora de colación no trabajada a todos los turnos y ofrecer alternativas de inicio cada 30 minutos.
-- Permitir duraciones manuales cada 30 minutos, completando las horas contratadas en exactamente 5 días para 5x2, 4 días para 4x3 y sábado y domingo para 16 horas.
+- Permitir duraciones manuales cada 30 minutos sin bloquear la asignación al alcanzar las horas contratadas.
 - Consultar la disponibilidad como información de referencia, sin bloquear ni modificar la asignación manual del administrador.
 - Permitir seleccionar horas desde las 00:00 y respetar el cierre máximo específico de cada día.
 - Elegir manualmente entre opciones de turno válidas para cada día.
 - Copiar y pegar turnos respetando las reglas contractuales y el cierre de cada día.
-- Comparar horas asignadas con horas contratadas.
+- Comparar horas asignadas con horas contratadas: el total se muestra en rojo cuando supera el contrato, sin impedir continuar editando.
 - Descargar el horario para Excel y guardarlo como PDF mediante la impresión del navegador.
 - Abrir una vista individual con turno diario, horas históricas y cantidad de cierres por trabajador.
 - Crear e importar respaldos completos en formato JSON.

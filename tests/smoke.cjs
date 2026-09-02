@@ -63,6 +63,7 @@ const result = vm.runInContext(`({
   closingWithoutNextDay: closingDisplay('Viernes'),
   endOptionsWithoutNextDay: !endTimeOptionsHtml('Viernes', '23:00', '01:00').includes('+1 día'),
   incompleteLastDayMessage: assignmentValidationMessage(state.employees[0], 'Jueves', '09:00 - 14:00'),
+  overContractMessage: assignmentValidationMessage(state.employees[0], 'Jueves', '09:00 - 18:00'),
   migratedRoles: [normalizeEmployeeRole('General'), normalizeEmployeeRole('Crew-Master')]
 })`, context);
 
@@ -78,7 +79,8 @@ assert.strictEqual(result.noCellHoursSummary, true);
 assert.strictEqual(result.noFreeOptionInTimeList, true);
 assert.strictEqual(result.closingWithoutNextDay, '01:00');
 assert.strictEqual(result.endOptionsWithoutNextDay, true);
-assert.ok(result.incompleteLastDayMessage.includes('completar exactamente 20 horas'));
+assert.strictEqual(result.incompleteLastDayMessage, '');
+assert.strictEqual(result.overContractMessage, '');
 assert.deepStrictEqual(Array.from(result.migratedRoles), ['Crew', 'Crew-Master']);
 
 const informationalAvailability = vm.runInContext(`(() => {
@@ -97,6 +99,19 @@ const informationalAvailability = vm.runInContext(`(() => {
 assert.strictEqual(informationalAvailability.independentShift, '');
 assert.strictEqual(informationalAvailability.preservedWithNoAvailability, '00:00 - 06:00');
 assert.strictEqual(informationalAvailability.earlyStartOption, true);
+
+const overContract = vm.runInContext(`(() => {
+  const employee = state.employees[0];
+  state.schedule[employee.id].Jueves = '09:00 - 18:00';
+  const html = rowHtml(employee);
+  return {
+    assigned: assignedHours(employee.id),
+    highlighted: html.includes('hours-summary hours-over')
+  };
+})()`, context);
+assert.strictEqual(overContract.assigned, 23);
+assert.strictEqual(overContract.highlighted, true);
+assert.strictEqual(appSource.includes('El turno supera las'), false);
 
 const exactPatterns = vm.runInContext(`(() => {
   const employee30 = { ...state.employees[0], id: 20, hours: 30, availability: complete() };

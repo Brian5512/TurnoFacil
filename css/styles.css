@@ -198,6 +198,8 @@ tbody tr:nth-child(even) td.person { background: #eef4ee; }
 .hours-summary span { color: var(--muted); font-size: 9px; }
 .hours-summary.hours-ok { background: var(--signal); color: var(--forest-strong); }
 .hours-summary.hours-warning { border: 1px solid #ecd6a6; background: #fff9eb; color: var(--amber); }
+.hours-summary.hours-over { border: 1px solid var(--danger); background: var(--danger-soft); color: var(--danger); }
+.hours-summary.hours-over span { color: currentColor; }
 .toggle { min-width: 38px; min-height: 26px; padding: 4px 6px; border: 1px solid var(--line); border-radius: 999px; background: #eff1ee; color: #59655d; font-size: 9px; font-weight: 780; }
 .toggle.on { border-color: #86b997; background: var(--signal); color: var(--forest-strong); }
 .delete { position: relative; width: 27px; height: 27px; border: 0; border-radius: 7px; background: transparent; color: #ad6653; font-size: 0; opacity: .7; }

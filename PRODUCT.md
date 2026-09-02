@@ -12,7 +12,7 @@ La persona encargada de organizar los turnos de un equipo en Chile. Trabaja prin
 
 1. Registrar trabajadores con nombre, RUT, cargo, horas semanales y permiso de cierre.
 2. Definir disponibilidad por día mediante una jornada completa, un rango de inicio y fin o no disponibilidad.
-3. Asignar cada turno manualmente respetando el contrato y las reglas de jornada, usando la disponibilidad solo como referencia.
+3. Asignar cada turno manualmente respetando los días del contrato y las reglas de jornada, usando la disponibilidad solo como referencia.
 4. Revisar las alertas de horas pendientes y ajustar la semana.
 5. Guardar historial, respaldar datos y exportar el resultado a Excel o PDF.
 
@@ -29,6 +29,7 @@ La persona encargada de organizar los turnos de un equipo en Chile. Trabaja prin
 - Lunes a jueves y domingo cierran a las 23:00.
 - Viernes y sábado pueden extenderse hasta la 01:00 del día siguiente.
 - Los turnos manuales pueden diferir de la disponibilidad indicada por decisión del administrador.
+- Las horas asignadas pueden superar las horas contratadas; el total se muestra en rojo sin bloquear la edición.
 - El estado se conserva localmente en el navegador.
 - La semana completa debe verse sin desplazamiento horizontal en computador.
 

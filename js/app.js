@@ -383,7 +383,9 @@ function rowHtml(employee, index) {
   const assigned = assignedHours(employee.id);
   const mobileExpanded = mobileExpandedEmployees.has(employee.id);
   const hoursDifference = assigned - Number(employee.hours || 0);
-  const hoursClass = Math.abs(hoursDifference) < 0.01 ? 'hours-ok' : 'hours-warning';
+  const hoursClass = hoursDifference > 0.001
+    ? 'hours-over'
+    : Math.abs(hoursDifference) < 0.01 ? 'hours-ok' : 'hours-warning';
   const dayCells = days.map((day) => {
     if (state.view === 'availability') {
       const pattern = workPattern(employee);
@@ -611,34 +613,12 @@ function assignmentValidationMessage(employee, day, value) {
 
 function contractAssignmentMessage(employee, day, value) {
   if (!value || value === 'LIBRE') return '';
-  const current = state.schedule?.[employee.id]?.[day] || 'LIBRE';
-  const projectedHours = assignedHours(employee.id) - shiftHours(current) + shiftHours(value);
-  const contractedHours = Number(employee.hours || 0);
-  if (projectedHours > contractedHours + 0.001) return `El turno supera las ${formatNumber(employee.hours)} horas contratadas.`;
   const pattern = workPattern(employee);
   if (!pattern) return '';
 
   const projectedUsedDays = days.filter((item) => shiftHours(item === day ? value : state.schedule?.[employee.id]?.[item]) > 0);
   if (projectedUsedDays.some((item) => !pattern.allowedDays.includes(item))) return `El contrato ${pattern.code} no permite trabajar ese día.`;
   if (projectedUsedDays.length > pattern.workDays) return `El contrato ${pattern.code} requiere exactamente ${pattern.workDays} días trabajados.`;
-
-  const remainingDays = pattern.workDays - projectedUsedDays.length;
-  const remainingHours = contractedHours - projectedHours;
-  if (remainingDays === 0) {
-    return Math.abs(remainingHours) > 0.001
-      ? `El último día del patrón ${pattern.code} debe completar exactamente ${formatNumber(contractedHours)} horas semanales.`
-      : '';
-  }
-
-  const availableDays = pattern.allowedDays
-    .filter((item) => !projectedUsedDays.includes(item))
-    .map((item) => dayWorkCapacity(employee, item))
-    .filter((capacity) => capacity > 0)
-    .sort((a, b) => b - a);
-  if (availableDays.length < remainingDays) return `Faltan días disponibles para completar el patrón ${pattern.code}.`;
-  if (remainingHours + 0.001 < remainingDays) return `Este turno no deja al menos 1 hora de trabajo para cada día restante del patrón ${pattern.code}.`;
-  const remainingCapacity = availableDays.slice(0, remainingDays).reduce((sum, capacity) => sum + capacity, 0);
-  if (remainingHours > remainingCapacity + 0.001) return `Este turno deja ${formatNumber(remainingHours)} horas pendientes, pero los ${remainingDays} días restantes permiten ${formatNumber(remainingCapacity)}.`;
   return '';
 }
 
