@@ -115,23 +115,10 @@ h1 { margin: 0; color: white; font-size: 34px; line-height: 1.05; letter-spacing
 .metric-note { grid-column: 1; margin-top: 2px; color: #91a69a; font-size: 10px; }
 .metric-icon { display: none; }
 
-.alerts-panel { margin-bottom: 12px; overflow: hidden; border: 1px solid #ddc89e; border-radius: 9px; background: #fffaf0; }
-.alerts-head, .alerts-ok { display: flex; align-items: center; justify-content: space-between; gap: 14px; min-height: 42px; padding: 9px 13px; }
-.alerts-head { color: #684417; background: #fff6e6; }
-.alerts-head strong, .alerts-ok strong { font-size: 12px; }
-.alerts-head span, .alerts-ok span { color: var(--muted); font-size: 10px; }
-.alerts-ok { color: var(--forest); background: var(--forest-wash); }
-.alert-list { display: flex; gap: 5px; flex-wrap: wrap; padding: 8px 12px; border-top: 1px solid var(--line); }
-.alert-chip { padding: 5px 8px; border-radius: 6px; background: var(--amber-soft); color: var(--amber); font-size: 10px; font-weight: 700; }
-.alert-chip.data { background: #eff1ee; color: #657067; }
-.alert-chip.more { background: var(--forest-soft); color: var(--forest); }
-
 .panel { overflow: hidden; border: 0; border-radius: 18px; background: var(--paper); box-shadow: 0 18px 52px rgba(24,51,34,.11); }
 .panel-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 18px; min-height: 84px; padding: 14px 16px 14px 20px; border-bottom: 0; background: var(--forest-strong); color: white; }
 .panel-heading { display: flex; align-items: center; gap: clamp(18px, 2.4vw, 38px); min-width: 0; }
-.panel-title { min-width: 0; }
 .panel-heading h2 { margin: 0; color: white; font-size: 18px; letter-spacing: -.025em; white-space: nowrap; }
-.panel-title p { margin: 4px 0 0; color: #a9bdb2; font-size: 10px; white-space: nowrap; }
 .tabs { display: flex; gap: 3px; padding: 3px; border: 1px solid rgba(255,255,255,.12); border-radius: 10px; background: rgba(255,255,255,.07); }
 .tab { height: 36px; padding: 0 14px; border: 1px solid transparent; border-radius: 7px; background: transparent; color: #c6d5cd; font-size: 10px; font-weight: 740; }
 .tab:hover { background: rgba(255,255,255,.08); color: white; }
@@ -182,7 +169,6 @@ tbody tr:nth-child(even) td.person { background: #eef4ee; }
 .mobile-worker-toggle { display: none; }
 .hours-editor { display: grid; justify-items: center; gap: 3px; }
 .hours-input { width: 49px; height: 31px; padding: 3px; text-align: center; font-weight: 750; font-variant-numeric: tabular-nums; }
-.hours-editor small { max-width: 75px; color: var(--muted); font-size: 9px; line-height: 1.2; }
 
 .availability-controls { display: grid; gap: 4px; min-width: 0; }
 .availability-line { display: grid; grid-template-columns: 34px minmax(0, 1fr); align-items: center; gap: 3px; color: var(--muted); font-size: 9px; font-weight: 700; text-align: left; }
@@ -217,7 +203,6 @@ tbody tr:nth-child(even) td.person { background: #eef4ee; }
 .hours-summary { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 48px; padding: 4px; border-radius: 8px; }
 .hours-summary strong { font-size: 16px; font-variant-numeric: tabular-nums; }
 .hours-summary span { color: var(--muted); font-size: 9px; }
-.hours-summary small { margin-top: 2px; color: var(--muted); font-size: 9px; line-height: 1.15; }
 .hours-summary.hours-ok { background: var(--signal); color: var(--forest-strong); }
 .hours-summary.hours-warning { border: 1px solid #ecd6a6; background: #fff9eb; color: var(--amber); }
 .toggle { min-width: 38px; min-height: 26px; padding: 4px 6px; border: 1px solid var(--line); border-radius: 999px; background: #eff1ee; color: #59655d; font-size: 9px; font-weight: 780; }
@@ -358,7 +343,7 @@ tbody tr:nth-child(even) td.person { background: #eef4ee; }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; } }
 
 @media print {
-  .topbar, .actions, .utility-bar, .metrics, .alerts-panel, .panel-toolbar, .hint, .remove-cell, .shift-tools { display: none !important; }
+  .topbar, .actions, .utility-bar, .metrics, .panel-toolbar, .hint, .remove-cell, .shift-tools { display: none !important; }
   body, .workspace { min-width: 0; background: white; }
   .workspace { max-width: none; padding: 0; }
   .command-center { margin-bottom: 10px; border: 0; }

@@ -216,13 +216,6 @@ function workPattern(employee) {
   return null;
 }
 
-function patternSummary(employee) {
-  const pattern = workPattern(employee);
-  if (!pattern) return 'Distribución flexible';
-  if (pattern.weekendOnly) return '2 días exactos | sábado y domingo';
-  return `${pattern.code} | ${pattern.workDays} días exactos`;
-}
-
 function workWindow(employee, day) {
   const availability = String(employee.availability[day] || '').trim().toUpperCase();
   const pattern = workPattern(employee);
@@ -420,17 +413,6 @@ function renderMetrics() {
   $('#metrics').innerHTML = metrics.map(([label, value, note]) => `<div class="metric"><div class="metric-label">${label}</div><div class="metric-value">${typeof value === 'number' ? formatNumber(value) : value}</div><div class="metric-note">${note}</div></div>`).join('');
 }
 
-function renderAlerts() {
-  const alerts = buildAlerts();
-  const panel = $('#alerts-panel');
-  if (!alerts.length) {
-    panel.innerHTML = '<div class="alerts-ok"><strong>Semana lista para trabajar</strong><span>Las horas contratadas y disponibilidades están correctamente ajustadas.</span></div>';
-    return;
-  }
-  const visible = alerts.slice(0, 8);
-  panel.innerHTML = `<div class="alerts-head"><strong>Revisiones pendientes</strong><span>${alerts.length} alerta${alerts.length === 1 ? '' : 's'}</span></div><div class="alert-list">${visible.map((alert) => `<span class="alert-chip ${alert.type}">${escapeHtml(alert.text)}</span>`).join('')}${alerts.length > visible.length ? `<span class="alert-chip more">${alerts.length - visible.length} adicionales</span>` : ''}</div>`;
-}
-
 function renderTable() {
   const table = $('#schedule-table');
   table.className = '';
@@ -480,8 +462,8 @@ function rowHtml(employee, index) {
     return `<td class="day-cell" data-label="${day}"><div class="shift-cell"><select class="shift-select ${current === 'LIBRE' ? 'off' : ''}" data-id="${employee.id}" data-day="${day}" data-action="shift" aria-label="Turno de ${escapeHtml(employee.name)} para ${day}">${options.map((option) => `<option value="${escapeHtml(option.value)}" ${option.value === current ? 'selected' : ''}>${escapeHtml(option.label)}</option>`).join('')}</select>${details}<div class="shift-tools"><button type="button" data-action="copy-shift" data-id="${employee.id}" data-day="${day}" ${current === 'LIBRE' ? 'disabled' : ''}>Copiar</button><button type="button" data-action="paste-shift" data-id="${employee.id}" data-day="${day}" ${canPaste ? '' : 'disabled'}>Pegar</button></div></div></td>`;
   }).join('');
   const hoursCell = state.view === 'schedule'
-    ? `<div class="hours-summary ${hoursClass}"><strong>${formatNumber(assigned)}</strong><span>/ ${formatNumber(employee.hours)} h</span><small>${patternSummary(employee)}</small></div>`
-    : `<div class="hours-editor"><input class="hours-input" type="number" min="1" max="60" data-id="${employee.id}" data-field="hours" value="${employee.hours}" aria-label="Horas semanales de ${escapeHtml(employee.name)}" /><small>${patternSummary(employee)}</small></div>`;
+    ? `<div class="hours-summary ${hoursClass}"><strong>${formatNumber(assigned)}</strong><span>/ ${formatNumber(employee.hours)} h</span></div>`
+    : `<div class="hours-editor"><input class="hours-input" type="number" min="1" max="60" data-id="${employee.id}" data-field="hours" value="${employee.hours}" aria-label="Horas semanales de ${escapeHtml(employee.name)}" /></div>`;
   return `<tr class="${mobileExpanded ? 'mobile-expanded' : ''}"><td class="person" data-label="Trabajador"><span class="person-avatar" aria-hidden="true">${escapeHtml(employeeInitials(employee.name))}</span><div class="person-fields"><input class="person-input" data-id="${employee.id}" data-field="name" value="${escapeHtml(employee.name)}" aria-label="Nombre del trabajador" /><input class="person-input rut" data-id="${employee.id}" data-field="rut" value="${escapeHtml(employee.rut)}" placeholder="RUT" aria-label="RUT de ${escapeHtml(employee.name)}" /><select class="person-input role" data-id="${employee.id}" data-field="role" aria-label="Cargo de ${escapeHtml(employee.name)}"><option value="Crew" ${employee.role === 'Crew' ? 'selected' : ''}>Crew</option><option value="Crew-Master" ${employee.role === 'Crew-Master' ? 'selected' : ''}>Crew-Master</option></select></div><button type="button" class="mobile-worker-toggle" data-id="${employee.id}" data-action="toggle-mobile-worker" aria-expanded="${mobileExpanded}">${mobileExpanded ? 'Ocultar semana' : 'Ver semana'}</button></td><td class="hours-cell" data-label="${state.view === 'schedule' ? 'Asignadas' : 'Horas'}">${hoursCell}</td>${dayCells}<td class="overnight-cell" data-label="Cierre hasta 01:00"><button class="toggle ${employee.overnight ? 'on' : ''}" data-id="${employee.id}" data-action="overnight" aria-label="${escapeHtml(employee.name)}: puede tener cierre hasta la 01:00, ${employee.overnight ? 'sí' : 'no'}">${employee.overnight ? 'SÍ' : 'NO'}</button></td><td class="remove-cell" data-label="Eliminar"><button class="delete" title="Eliminar trabajador" aria-label="Eliminar a ${escapeHtml(employee.name)}" data-id="${employee.id}" data-action="delete"></button></td></tr>`;
 }
 
@@ -947,7 +929,6 @@ function render() {
     tab.setAttribute('aria-selected', String(active));
   });
   renderMetrics();
-  renderAlerts();
   renderTable();
 }
 
