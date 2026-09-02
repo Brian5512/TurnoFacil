@@ -1,16 +1,19 @@
 const days = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
 const storageKey = 'turnofacil-html-v1';
-const appVersion = 4;
+const appVersion = 5;
 const mealBreakHours = 1;
-const openingMinutes = 9 * 60;
 const complete = () => Object.fromEntries(days.map((day) => [day, 'COMPLETA']));
 const emptyDays = () => Object.fromEntries(days.map((day) => [day, 'LIBRE']));
+const defaultBusinessHours = () => Object.fromEntries(days.map((day) => [day, {
+  start: '09:00',
+  end: day === 'Viernes' || day === 'Sábado' ? '01:00' : '23:00',
+}]));
 const seed = [
   { id: 1, name: 'Trabajador 1', rut: '', role: 'Crew', hours: 30, overnight: false, availability: complete() },
   { id: 2, name: 'Trabajador 2', rut: '', role: 'Crew', hours: 20, overnight: false, availability: complete() },
 ];
 
-let state = { version: appVersion, employees: seed, week: getMonday(), view: 'availability', schedule: {}, history: {} };
+let state = { version: appVersion, employees: seed, week: getMonday(), view: 'availability', schedule: {}, businessHours: defaultBusinessHours(), history: {} };
 let shiftClipboard = null;
 let saveTimer;
 const mobileExpandedEmployees = new Set();
@@ -59,6 +62,16 @@ function normalizeEmployeeRole(value) {
   return String(value || '').trim().toLocaleLowerCase('es') === 'crew-master' ? 'Crew-Master' : 'Crew';
 }
 
+function normalizeBusinessHours(value) {
+  const defaults = defaultBusinessHours();
+  return Object.fromEntries(days.map((day) => {
+    const candidate = value?.[day] || {};
+    const start = timeValues.includes(candidate.start) ? candidate.start : defaults[day].start;
+    const end = timeValues.includes(candidate.end) && candidate.end !== start ? candidate.end : defaults[day].end;
+    return [day, { start, end }];
+  }));
+}
+
 function load() {
   try {
     const saved = JSON.parse(localStorage.getItem(storageKey));
@@ -68,6 +81,7 @@ function load() {
         ...saved,
         version: appVersion,
         employees: saved.employees.map((employee, index) => ({ ...employee, id: Number(employee.id) || Date.now() + index, role: normalizeEmployeeRole(employee.role), availability: { ...complete(), ...(employee.availability || {}) } })),
+        businessHours: normalizeBusinessHours(saved.businessHours),
         history: saved.history && typeof saved.history === 'object' ? saved.history : {},
       };
       delete state.coverageRules;
@@ -93,12 +107,17 @@ function load() {
 
 function persistCurrentWeek() {
   state.history ??= {};
-  state.history[state.week] = { schedule: clone(state.schedule || {}), updatedAt: new Date().toISOString() };
+  state.history[state.week] = {
+    schedule: clone(state.schedule || {}),
+    businessHours: clone(normalizeBusinessHours(state.businessHours)),
+    updatedAt: new Date().toISOString(),
+  };
 }
 
 function restoreWeek(week) {
   const savedWeek = state.history?.[week];
   state.schedule = clone(savedWeek?.schedule || {});
+  state.businessHours = normalizeBusinessHours(savedWeek?.businessHours);
 }
 
 function save() {
@@ -127,8 +146,20 @@ function formatTime(minutes) {
 const timeValues = Array.from({ length: 48 }, (_, index) => formatTime(index * 30));
 const scheduleTimeValues = timeValues.filter((time) => parseTime(time) <= 23 * 60);
 
-function closingMinutes(day) {
-  return day === 'Viernes' || day === 'Sábado' ? 25 * 60 : 23 * 60;
+function businessHoursFor(day, source = state.businessHours) {
+  return source?.[day] || defaultBusinessHours()[day];
+}
+
+function openingMinutesFor(day, source = state.businessHours) {
+  return parseTime(businessHoursFor(day, source).start);
+}
+
+function closingMinutes(day, source = state.businessHours) {
+  const hours = businessHoursFor(day, source);
+  const start = parseTime(hours.start);
+  let end = parseTime(hours.end);
+  if (end <= start) end += 1440;
+  return end;
 }
 
 function closingTime(day) {
@@ -139,9 +170,16 @@ function closingDisplay(day) {
   return closingTime(day);
 }
 
+function businessHoursDisplay(day) {
+  const hours = businessHoursFor(day);
+  return `${hours.start} a ${hours.end}`;
+}
+
 function startTimeOptionsHtml(day, selected = '') {
   const limit = Math.min(closingMinutes(day), 1440);
-  return timeValues.filter((time) => parseTime(time) >= openingMinutes && parseTime(time) < limit).map((time) => `<option value="${time}" ${time === selected ? 'selected' : ''}>${time}</option>`).join('');
+  const available = timeValues.filter((time) => parseTime(time) >= openingMinutesFor(day) && parseTime(time) < limit);
+  const current = selected && !available.includes(selected) ? `<option value="${selected}" selected>${selected}</option>` : '';
+  return `${current}${available.map((time) => `<option value="${time}" ${time === selected ? 'selected' : ''}>${time}</option>`).join('')}`;
 }
 
 function endMinutesForRange(start, end) {
@@ -162,7 +200,8 @@ function endTimeOptionsHtml(day, start, selected = '') {
     seen.add(value);
     options.push(`<option value="${value}" ${value === selected ? 'selected' : ''}>${value}</option>`);
   }
-  return options.length ? options.join('') : '<option value="">Sin horas disponibles</option>';
+  const current = selected && !seen.has(selected) ? `<option value="${selected}" selected>${selected}</option>` : '';
+  return options.length || current ? `${current}${options.join('')}` : '<option value="">Sin horas disponibles</option>';
 }
 
 function endWithinClosing(day, start, end) {
@@ -226,7 +265,8 @@ function suggestedShiftHours(employee) {
 
 function scheduleWindow(employee, day) {
   const end = employee.overnight ? closingMinutes(day) : Math.min(closingMinutes(day), 1440);
-  return { start: 0, end, capacity: end / 60, ranged: false };
+  const start = openingMinutesFor(day);
+  return { start, end, capacity: Math.max(0, (end - start) / 60), ranged: false };
 }
 
 function dayWorkCapacity(employee, day) {
@@ -265,32 +305,6 @@ function shiftOptions(employee, day, extraDurations = []) {
   return [...options, ...collected.values()];
 }
 
-function enforceClosingLimits() {
-  let changed = false;
-  for (const employee of state.employees) {
-    for (const day of days) {
-      let availability = availabilityParts(employee.availability[day]);
-      if (availability.mode === 'range' && parseTime(availability.start) < openingMinutes) {
-        const endMinutes = endMinutesForRange(availability.start, availability.end);
-        employee.availability[day] = endMinutes <= openingMinutes ? 'X' : `${formatTime(openingMinutes)} - ${availability.end}`;
-        availability = availabilityParts(employee.availability[day]);
-        changed = true;
-      }
-      if (availability.mode === 'range' && !endWithinClosing(day, availability.start, availability.end)) {
-        if (parseTime(availability.start) >= Math.min(closingMinutes(day), 1440)) employee.availability[day] = 'X';
-        else employee.availability[day] = `${availability.start} - ${closingTime(day)}`;
-        changed = true;
-      }
-      const current = state.schedule?.[employee.id]?.[day];
-      if (current && current !== 'LIBRE' && !shiftOptions(employee, day, [shiftHours(current)]).some((option) => option.value === current)) {
-        state.schedule[employee.id][day] = 'LIBRE';
-        changed = true;
-      }
-    }
-  }
-  if (changed) save();
-}
-
 function weekLabel() {
   const start = new Date(`${state.week}T12:00:00`);
   const end = new Date(start);
@@ -322,8 +336,8 @@ function renderTable() {
   const table = $('#schedule-table');
   table.className = '';
   const body = state.employees.length ? state.employees.map(rowHtml).join('') : '<tr><td colspan="11" class="empty-row">No hay trabajadores. Usa “Agregar trabajador” para comenzar.</td></tr>';
-  const today = localDateValue(new Date());
-  table.innerHTML = `<thead><tr><th>Trabajador y cargo</th><th class="hours">${state.view === 'schedule' ? 'Asignadas' : 'Horas'}</th>${days.map((day, index) => `<th class="day ${localDateValue(dateForDay(index)) === today ? 'today' : ''}"><span>${day}</span><small><span class="day-date">${dayDateLabel(index)}</span><span class="day-window">09:00 a ${closingDisplay(day)}</span></small></th>`).join('')}<th class="overnight">Cierre hasta 01:00</th><th class="remove"></th></tr></thead><tbody>${body}</tbody>`;
+  table.innerHTML = `<thead><tr><th>Trabajador y cargo</th><th class="hours">${state.view === 'schedule' ? 'Asignadas' : 'Horas'}</th>${days.map((day, index) => `<th class="day"><span>${day}</span><small><span class="day-date">${dayDateLabel(index)}</span><button type="button" class="day-window-button" data-action="business-hours" data-day="${day}" aria-label="Editar apertura y cierre de ${day}">${businessHoursDisplay(day)}</button></small></th>`).join('')}<th class="overnight">Cierre hasta 01:00</th><th class="remove"></th></tr></thead><tbody>${body}</tbody>`;
+  table.querySelectorAll('[data-action="business-hours"]').forEach((button) => button.addEventListener('click', openBusinessHoursDialog));
   table.querySelectorAll('[data-field]').forEach((input) => input.addEventListener('change', onCellChange));
   table.querySelectorAll('[data-action="availability-start"]').forEach((select) => select.addEventListener('change', onAvailabilityStartChange));
   table.querySelectorAll('[data-action="availability-end"]').forEach((select) => select.addEventListener('change', onAvailabilityEndChange));
@@ -379,7 +393,11 @@ function toggleMobileWorker(event) {
 }
 
 function renderAvailabilityForm() {
-  $('#availability-form').innerHTML = days.map((day) => `<div class="availability-row" data-form-day="${day}"><div class="day-close"><strong>${day}</strong><small>09:00 a ${closingDisplay(day)}</small></div><select class="availability-mode" aria-label="Disponibilidad de ${day}"><option value="complete">Completa</option><option value="range">Rango horario</option><option value="unavailable">No disponible</option></select><div class="time-fields" hidden><label>Desde <select class="start-time" aria-label="Hora de inicio de ${day}">${startTimeOptionsHtml(day, '09:00')}</select></label><label>Hasta <select class="end-time" aria-label="Hora de término de ${day}">${endTimeOptionsHtml(day, '09:00', '18:00')}</select></label></div></div>`).join('');
+  $('#availability-form').innerHTML = days.map((day) => {
+    const start = businessHoursFor(day).start;
+    const end = defaultEndForDay(day, start);
+    return `<div class="availability-row" data-form-day="${day}"><div class="day-close"><strong>${day}</strong><small>${businessHoursDisplay(day)}</small></div><select class="availability-mode" aria-label="Disponibilidad de ${day}"><option value="complete">Completa</option><option value="range">Rango horario</option><option value="unavailable">No disponible</option></select><div class="time-fields" hidden><label>Desde <select class="start-time" aria-label="Hora de inicio de ${day}">${startTimeOptionsHtml(day, start)}</select></label><label>Hasta <select class="end-time" aria-label="Hora de término de ${day}">${endTimeOptionsHtml(day, start, end)}</select></label></div></div>`;
+  }).join('');
   $$('.availability-mode').forEach((select) => select.addEventListener('change', () => {
     const row = select.closest('.availability-row');
     row.querySelector('.time-fields').hidden = select.value !== 'range';
@@ -392,6 +410,50 @@ function renderAvailabilityForm() {
     endSelect.innerHTML = endTimeOptionsHtml(day, select.value, selectedEnd);
   }));
   updateAvailabilityFormPattern();
+}
+
+function businessTimeOptionsHtml(selected) {
+  return timeValues.map((time) => `<option value="${time}" ${time === selected ? 'selected' : ''}>${time}</option>`).join('');
+}
+
+function renderBusinessHoursFields() {
+  $('#business-hours-fields').innerHTML = days.map((day) => {
+    const hours = businessHoursFor(day);
+    return `<div class="business-hours-row" data-business-day="${day}"><strong>${day}</strong><label>Desde<select data-business-field="start" aria-label="Hora de apertura de ${day}">${businessTimeOptionsHtml(hours.start)}</select></label><label>Hasta<select data-business-field="end" aria-label="Hora de cierre de ${day}">${businessTimeOptionsHtml(hours.end)}</select></label></div>`;
+  }).join('');
+}
+
+function openBusinessHoursDialog(event) {
+  renderBusinessHoursFields();
+  const dialog = $('#business-hours-dialog');
+  dialog.showModal();
+  const day = event?.currentTarget?.dataset?.day;
+  const target = day
+    ? dialog.querySelector(`[data-business-day="${day}"] [data-business-field="start"]`)
+    : dialog.querySelector('[data-business-field="start"]');
+  setTimeout(() => target?.focus(), 0);
+}
+
+function saveBusinessHours(event) {
+  event.preventDefault();
+  const next = {};
+  for (const row of $$('.business-hours-row')) {
+    const day = row.dataset.businessDay;
+    const start = row.querySelector('[data-business-field="start"]').value;
+    const endSelect = row.querySelector('[data-business-field="end"]');
+    const end = endSelect.value;
+    if (start === end) {
+      toast(`La apertura y el cierre de ${day} no pueden ser iguales.`);
+      endSelect.focus();
+      return;
+    }
+    next[day] = { start, end };
+  }
+  state.businessHours = normalizeBusinessHours(next);
+  save();
+  $('#business-hours-dialog').close();
+  render();
+  toast('Horarios de apertura y cierre actualizados.');
 }
 
 function updateAvailabilityFormPattern() {
@@ -488,7 +550,6 @@ function onAvailabilityStartChange(event) {
     const end = canKeepEnd ? current.end : defaultEndForDay(day, start);
     employee.availability[day] = `${start} - ${end}`;
   }
-  enforceClosingLimits();
   save();
   render();
 }
@@ -504,7 +565,6 @@ function onAvailabilityEndChange(event) {
     return;
   }
   employee.availability[day] = `${current.start} - ${event.target.value}`;
-  enforceClosingLimits();
   save();
   render();
 }
@@ -600,7 +660,6 @@ function toggleOvernight(event) {
   const employee = state.employees.find((item) => item.id === Number(event.currentTarget.dataset.id));
   if (!employee) return;
   employee.overnight = !employee.overnight;
-  enforceClosingLimits();
   save();
   render();
 }
@@ -672,6 +731,7 @@ async function importBackup(event) {
       version: appVersion,
       week: normalizeMonday(imported.week || getMonday()),
       employees: imported.employees.map((employee, index) => ({ ...employee, id: Number(employee.id) || Date.now() + index, role: normalizeEmployeeRole(employee.role), availability: { ...complete(), ...(employee.availability || {}) } })),
+      businessHours: normalizeBusinessHours(imported.businessHours),
       history: imported.history && typeof imported.history === 'object' ? imported.history : {},
     };
     delete state.coverageRules;
@@ -683,9 +743,9 @@ async function importBackup(event) {
       delete week.strategy;
       if (!Object.keys(week.schedule || {}).length && week.recommendations) week.schedule = clone(week.recommendations);
       delete week.recommendations;
+      week.businessHours = normalizeBusinessHours(week.businessHours);
     });
     state.view = ['availability', 'schedule'].includes(state.view) ? state.view : 'availability';
-    enforceClosingLimits();
     save();
     render();
     toast('Respaldo importado correctamente.');
@@ -708,7 +768,7 @@ function employeeHistoryStats(employeeId) {
       const value = week.schedule?.[employeeId]?.[day];
       const window = parseWindow(value);
       stats.hours += shiftHours(value);
-      if (window && window.end === closingMinutes(day)) stats.closings += 1;
+      if (window && window.end === closingMinutes(day, week.businessHours)) stats.closings += 1;
     });
     return stats;
   }, { hours: 0, closings: 0, weeks: weeks.length });
@@ -793,6 +853,10 @@ $('#next-week').addEventListener('click', () => changeWeek(addDaysToDate(state.w
 $('#current-week').addEventListener('click', () => changeWeek(getMonday()));
 $('#week').addEventListener('change', (event) => changeWeek(event.target.value));
 $('#open-add').addEventListener('click', openEmployeeDialog);
+$('#open-business-hours').addEventListener('click', openBusinessHoursDialog);
+$('#close-business-hours').addEventListener('click', () => $('#business-hours-dialog').close());
+$('#cancel-business-hours').addEventListener('click', () => $('#business-hours-dialog').close());
+$('#business-hours-form').addEventListener('submit', saveBusinessHours);
 $('#close-add').addEventListener('click', () => $('#employee-dialog').close());
 $('#cancel-add').addEventListener('click', () => $('#employee-dialog').close());
 $('#employee-form').addEventListener('submit', addEmployeeFromForm);
@@ -810,7 +874,6 @@ $('#backup-file').addEventListener('change', importBackup);
 $$('.tab').forEach((tab) => tab.addEventListener('click', () => { state.view = tab.dataset.view; render(); }));
 
 load();
-enforceClosingLimits();
 render();
 
 if ('scrollRestoration' in window.history) window.history.scrollRestoration = 'manual';

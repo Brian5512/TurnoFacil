@@ -192,9 +192,9 @@ La paleta combina verdes forestales sobrios con papeles fríos y estados semánt
 
 ## Layout
 
-El escritorio usa un espacio de trabajo fluido de ancho completo con máximo de 1680px, una barra superior fija de 64px y márgenes laterales adaptativos. La secuencia vertical es comando semanal, utilidades, métricas, alertas y panel de planificación; el espaciado corto de 4–16px mantiene la relación entre controles, mientras 22–36px reservan aire para el marco general.
+El escritorio usa un espacio de trabajo fluido de ancho completo con máximo de 1680px, una barra superior fija de 64px y márgenes laterales adaptativos. La secuencia vertical es comando semanal, utilidades y panel de planificación; el espaciado corto de 4–16px mantiene la relación entre controles, mientras 22–36px reservan aire para el marco general.
 
-La tabla usa distribución fija para mostrar trabajador, horas, siete días, permiso de cierre y eliminación dentro del ancho disponible. En escritorio, cada día ocupa aproximadamente 10% y el primer campo 15%; la superficie permite desplazamiento vertical interno, pero oculta el horizontal. Entre 901px y 1250px ajusta proporciones y márgenes sin alterar la estructura.
+La tabla usa distribución fija para mostrar trabajador, horas, siete días, permiso de cierre y eliminación dentro del ancho disponible. Todos los días comparten el mismo encabezado neutral; su rango de apertura y cierre actúa como acceso directo a la configuración semanal. En escritorio, cada día ocupa aproximadamente 10% y el primer campo 15%; la superficie permite desplazamiento vertical interno, pero oculta el horizontal. Entre 901px y 1250px ajusta proporciones y márgenes sin alterar la estructura.
 
 A 900px la tabla deja de comportarse como grilla y cada fila se convierte en una tarjeta de trabajador con dos columnas desplegables. A 620px pasa a una sola columna, apila acciones y expande pestañas y controles al ancho disponible. Los objetivos táctiles críticos alcanzan 40–44px y la tabla nunca obliga a desplazarse horizontalmente.
 

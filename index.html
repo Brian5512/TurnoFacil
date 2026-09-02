@@ -10,7 +10,7 @@
     <meta property="og:image" content="https://brian5512.github.io/TurnoFacil/assets/og.png" />
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://brian5512.github.io/TurnoFacil/" />
-    <link rel="stylesheet" href="css/styles.css?v=17" />
+    <link rel="stylesheet" href="css/styles.css?v=18" />
   </head>
   <body>
     <header class="topbar">
@@ -41,7 +41,7 @@
       <section class="panel">
         <div class="panel-toolbar">
           <div class="panel-heading"><h2>Planificación del equipo</h2><div class="tabs" role="tablist" aria-label="Vista del planificador"><button data-view="availability" class="tab active" role="tab" aria-selected="true" aria-controls="schedule-table">Disponibilidades</button><button data-view="schedule" class="tab" role="tab" aria-selected="false" aria-controls="schedule-table">Asignación manual</button></div></div>
-          <div class="panel-actions"><button id="open-add" class="button add-worker">Agregar trabajador</button></div>
+          <div class="panel-actions"><button id="open-business-hours" class="button hours-settings">Apertura y cierre</button><button id="open-add" class="button add-worker">Agregar trabajador</button></div>
         </div>
         <div class="table-wrap"><table id="schedule-table"></table></div>
         <div class="hint"><span id="view-hint">Los turnos comienzan desde las <b>09:00</b> y ofrecen alternativas cada 30 minutos hasta el cierre máximo permitido.</span><span id="row-count"></span></div>
@@ -76,7 +76,18 @@
         <div class="dialog-actions"><button type="button" id="cancel-individual" class="button secondary">Cerrar</button><button type="button" id="print-individual" class="button primary">Guardar ficha en PDF</button></div>
       </form>
     </dialog>
+    <dialog id="business-hours-dialog" class="employee-dialog business-hours-dialog" aria-labelledby="business-hours-dialog-title">
+      <form id="business-hours-form" method="dialog">
+        <div class="dialog-head">
+          <div><h2 id="business-hours-dialog-title">Apertura y cierre</h2><p>Modifica el horario del local para la semana seleccionada.</p></div>
+          <button type="button" id="close-business-hours" class="dialog-close" aria-label="Cerrar"><span class="sr-only">Cerrar</span></button>
+        </div>
+        <div id="business-hours-fields" class="business-hours-fields"></div>
+        <p class="business-hours-note">Los turnos existentes se conservarán. Los nuevos turnos usarán estos límites.</p>
+        <div class="dialog-actions"><button type="button" id="cancel-business-hours" class="button secondary">Cancelar</button><button type="submit" class="button primary">Guardar horarios</button></div>
+      </form>
+    </dialog>
     <div id="toast" role="status"></div>
-    <script src="js/app.js?v=15"></script>
+    <script src="js/app.js?v=16"></script>
   </body>
 </html>

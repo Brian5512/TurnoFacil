@@ -21,15 +21,15 @@ No requiere instalación ni conexión a Internet. Los datos se guardan automáti
 
 - Agregar trabajadores con nombre, RUT, horas semanales y disponibilidad diaria mediante listas de hora “Desde” y “Hasta”.
 - Registrar el cargo como **Crew** o **Crew-Master** y validar el dígito verificador del RUT al agregarlo.
-- Editar manualmente cada turno con dos listas, **Desde** y **Hasta**, que muestran horas cada 30 minutos entre 00:00 y 23:00.
+- Editar manualmente cada turno con dos listas, **Desde** y **Hasta**, que muestran alternativas cada 30 minutos dentro del horario configurado para el día.
 - Marcar un día sin turno mediante su botón **Libre** y sumar automáticamente las horas de todos los turnos en la columna **Asignadas**.
 - Abrir automáticamente la semana vigente según la fecha del sistema, navegar entre semanas y conservar el historial.
-- Respetar los cierres operacionales: 23:00 de lunes a jueves y domingo; 01:00 del día siguiente viernes y sábado.
+- Editar la apertura y el cierre de cada día para la semana seleccionada; por defecto son 09:00–23:00, con cierre a la 01:00 viernes y sábado.
 - Usar las horas contratadas como referencia para sugerir la duración inicial del turno, permitiendo trabajar cualquier día y distribuir la semana libremente.
 - Agregar una hora de colación no trabajada a todos los turnos y ofrecer alternativas de inicio cada 30 minutos.
 - Permitir duraciones manuales cada 30 minutos sin bloquear la asignación al alcanzar las horas contratadas.
 - Consultar la disponibilidad como información de referencia, sin bloquear ni modificar la asignación manual del administrador.
-- Permitir seleccionar horas desde las 00:00 y respetar el cierre máximo específico de cada día.
+- Permitir comenzar desde las 00:00 cuando la apertura del día esté configurada a esa hora.
 - Elegir manualmente entre opciones de turno válidas para cada día.
 - Copiar y pegar turnos respetando el cierre de cada día.
 - Comparar horas asignadas con horas contratadas: el total se muestra en rojo cuando supera el contrato, sin impedir continuar editando.

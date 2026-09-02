@@ -100,6 +100,8 @@ h1 { margin: 0; color: white; font-size: 34px; line-height: 1.05; letter-spacing
 .button.compact { height: 32px; padding: 0 10px; }
 .button.add-worker { border-color: #a8c7b3; background: var(--forest-soft); color: var(--forest-strong); }
 .button.add-worker:hover { border-color: #7da98c; background: #dceee3; }
+.button.hours-settings { border-color: rgba(255,255,255,.22); background: rgba(255,255,255,.08); color: #eef6f1; }
+.button.hours-settings:hover { border-color: rgba(255,255,255,.38); background: rgba(255,255,255,.14); }
 
 .utility-bar { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 43px; padding: 10px 0 0; border-top: 1px solid rgba(255,255,255,.1); }
 .utility-group, .panel-actions { display: flex; align-items: center; gap: 3px; flex-wrap: wrap; }
@@ -111,6 +113,7 @@ h1 { margin: 0; color: white; font-size: 34px; line-height: 1.05; letter-spacing
 .panel-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 18px; min-height: 84px; padding: 14px 16px 14px 20px; border-bottom: 0; background: var(--forest-strong); color: white; }
 .panel-heading { display: flex; align-items: center; gap: clamp(18px, 2.4vw, 38px); min-width: 0; }
 .panel-heading h2 { margin: 0; color: white; font-size: 18px; letter-spacing: -.025em; white-space: nowrap; }
+.panel-actions { gap: 7px; }
 .tabs { display: flex; gap: 3px; padding: 3px; border: 1px solid rgba(255,255,255,.12); border-radius: 10px; background: rgba(255,255,255,.07); }
 .tab { height: 36px; padding: 0 14px; border: 1px solid transparent; border-radius: 7px; background: transparent; color: #c6d5cd; font-size: 10px; font-weight: 740; }
 .tab:hover { background: rgba(255,255,255,.08); color: white; }
@@ -133,9 +136,8 @@ th.day { width: 10%; }
 th.day span, th.day small { display: block; }
 th.day small { display: grid; gap: 1px; margin-top: 4px; color: #6f7f75; font-size: 8px; font-weight: 650; letter-spacing: .01em; line-height: 1.05; text-transform: none; }
 th.day .day-date { color: #405b4b; font-weight: 760; }
-th.day .day-window { color: #728078; font-size: 7.5px; }
-th.day.today { background: var(--signal); color: var(--forest-strong); box-shadow: none; }
-th.day.today .day-date, th.day.today .day-window { color: #315b43; }
+.day-window-button { width: 100%; min-height: 18px; margin-top: 1px; padding: 1px 3px; border: 0; border-radius: 4px; background: transparent; color: #617269; font-size: 7.5px; font-weight: 680; line-height: 1.15; white-space: nowrap; }
+.day-window-button:hover { background: #dce7de; color: var(--forest); }
 th.overnight { width: 5.5%; }
 th.remove { width: 3%; }
 td { height: 74px; padding: 6px; border-left: 1px solid #e6ebe5; border-bottom: 1px solid #e1e7e0; background: var(--paper); text-align: center; vertical-align: middle; }
@@ -229,6 +231,13 @@ tbody tr:nth-child(even) td.person { background: #eef4ee; }
 .time-fields select { min-width: 100px; height: 34px; padding: 0 7px; font-size: 11px; }
 .dialog-actions { display: flex; justify-content: flex-end; gap: 7px; margin-top: 20px; padding-top: 15px; border-top: 1px solid var(--line); }
 .individual-dialog { width: min(760px, calc(100vw - 32px)); }
+.business-hours-dialog { width: min(620px, calc(100vw - 32px)); }
+.business-hours-fields { display: grid; gap: 7px; }
+.business-hours-row { display: grid; grid-template-columns: minmax(96px, 1fr) 130px 130px; gap: 10px; align-items: end; padding: 9px 11px; border: 1px solid var(--line); border-radius: 10px; background: var(--paper-muted); }
+.business-hours-row > strong { align-self: center; color: var(--forest-strong); font-size: 12px; }
+.business-hours-row label { display: grid; gap: 4px; color: var(--muted); font-size: 9px; font-weight: 760; text-transform: uppercase; letter-spacing: .045em; }
+.business-hours-row select { width: 100%; height: 36px; padding: 0 9px; background: white; font-size: 12px; font-weight: 650; }
+.business-hours-note { margin: 11px 2px 0; color: var(--muted); font-size: 10px; }
 .report-worker-field { max-width: 360px; margin-bottom: 15px; }
 .individual-report-content { overflow: hidden; border: 1px solid var(--line); border-radius: var(--radius-md); }
 .individual-summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: var(--line); }
@@ -319,6 +328,8 @@ tbody tr:nth-child(even) td.person { background: #eef4ee; }
   .availability-row { grid-template-columns: 1fr; }
   .time-fields { flex-wrap: wrap; }
   .individual-summary { grid-template-columns: 1fr 1fr; }
+  .business-hours-row { grid-template-columns: 74px minmax(0,1fr) minmax(0,1fr); gap: 7px; padding: 8px; }
+  .business-hours-row select { height: 42px; padding-inline: 6px; font-size: 16px; }
 }
 
 @media (hover: none) { .icon-button:hover, .button:hover, .text-button:hover, .delete:hover { background-color: inherit; } }

@@ -4,6 +4,7 @@ const assert = require('assert');
 
 const appSource = fs.readFileSync('js/app.js', 'utf8');
 const indexSource = fs.readFileSync('index.html', 'utf8');
+const cssSource = fs.readFileSync('css/styles.css', 'utf8');
 const source = appSource.slice(0, appSource.indexOf("$('#previous-week')"));
 const context = vm.createContext({
   console,
@@ -34,6 +35,7 @@ vm.runInContext(`
     version: 4,
     week: '2026-08-24',
     view: 'schedule',
+    businessHours: defaultBusinessHours(),
     history: {},
     employees: [{
       id: 10,
@@ -84,18 +86,17 @@ const informationalAvailability = vm.runInContext(`(() => {
   const employee = { ...state.employees[0], id: 11, availability: Object.fromEntries(days.map(day => [day, 'X'])) };
   state.employees.push(employee);
   state.schedule[11] = emptyDays();
-  const independentShift = assignmentValidationMessage(employee, 'Lunes', '00:00 - 06:00');
-  state.schedule[11].Lunes = '00:00 - 06:00';
-  enforceClosingLimits();
+  const independentShift = assignmentValidationMessage(employee, 'Lunes', '09:00 - 15:00');
+  state.schedule[11].Lunes = '09:00 - 15:00';
   return {
     independentShift,
     preservedWithNoAvailability: state.schedule[11].Lunes,
-    earlyStartOption: shiftOptions(employee, 'Lunes').some(option => option.value === '00:00 - 06:00')
+    scheduleOption: shiftOptions(employee, 'Lunes').some(option => option.value === '09:00 - 15:00')
   };
 })()`, context);
 assert.strictEqual(informationalAvailability.independentShift, '');
-assert.strictEqual(informationalAvailability.preservedWithNoAvailability, '00:00 - 06:00');
-assert.strictEqual(informationalAvailability.earlyStartOption, true);
+assert.strictEqual(informationalAvailability.preservedWithNoAvailability, '09:00 - 15:00');
+assert.strictEqual(informationalAvailability.scheduleOption, true);
 
 const overContract = vm.runInContext(`(() => {
   const employee = state.employees[0];
@@ -114,6 +115,9 @@ assert.strictEqual(appSource.includes('copyPreviousWeek'), false);
 assert.strictEqual(indexSource.includes('id="metrics"'), false);
 assert.strictEqual(indexSource.includes('id="copy-previous"'), false);
 assert.strictEqual(indexSource.includes('Organiza los turnos de tu equipo para esta semana.'), true);
+assert.strictEqual(indexSource.includes('id="open-business-hours"'), true);
+assert.strictEqual(indexSource.includes('id="business-hours-dialog"'), true);
+assert.strictEqual(cssSource.includes('th.day.today'), false);
 
 const flexibleDays = vm.runInContext(`(() => {
   const employee30 = { ...state.employees[0], id: 20, hours: 30, availability: complete() };
@@ -149,11 +153,33 @@ assert.strictEqual(flexibleDays.mondayShiftMessage16, '');
 assert.ok(flexibleDays.mondayOptions16 > 1);
 assert.strictEqual(flexibleDays.availabilityFields16, 7);
 
+const editableBusinessHours = vm.runInContext(`(() => {
+  state.businessHours = defaultBusinessHours();
+  const defaultMonday = businessHoursDisplay('Lunes');
+  state.businessHours.Lunes = { start: '07:00', end: '22:00' };
+  const earlyShift = assignmentValidationMessage(state.employees[0], 'Lunes', '07:00 - 14:00');
+  const afterClosing = assignmentValidationMessage(state.employees[0], 'Lunes', '21:00 - 23:00');
+  state.schedule[state.employees[0].id].Lunes = '06:00 - 15:00';
+  return {
+    defaultMonday,
+    editedMonday: businessHoursDisplay('Lunes'),
+    earlyShift,
+    afterClosing,
+    existingShiftPreserved: state.schedule[state.employees[0].id].Lunes
+  };
+})()`, context);
+assert.strictEqual(editableBusinessHours.defaultMonday, '09:00 a 23:00');
+assert.strictEqual(editableBusinessHours.editedMonday, '07:00 a 22:00');
+assert.strictEqual(editableBusinessHours.earlyShift, '');
+assert.ok(editableBusinessHours.afterClosing.includes('horario permitido'));
+assert.strictEqual(editableBusinessHours.existingShiftPreserved, '06:00 - 15:00');
+
 const saturdayOptions = vm.runInContext(`
+  state.businessHours = defaultBusinessHours();
   shiftOptions({ ...state.employees[0], overnight: true, availability: complete() }, 'Sábado').filter(option => option.hours === 10).map(option => option.value);
 `, context);
-assert.strictEqual(saturdayOptions.length, 29);
-assert.strictEqual(saturdayOptions[0], '00:00 - 11:00');
+assert.strictEqual(saturdayOptions.length, 11);
+assert.strictEqual(saturdayOptions[0], '09:00 - 20:00');
 assert.strictEqual(saturdayOptions.at(-1), '14:00 - 01:00');
 
 const freeDayResult = vm.runInContext(`
@@ -169,14 +195,18 @@ assert.strictEqual(freeDayResult.assigned, 15);
 const historyHours = vm.runInContext(`
   state.employees = [{ ...state.employees[0], id: 10 }];
   state.schedule = { 10: emptyDays() };
+  state.businessHours = defaultBusinessHours();
+  state.businessHours.Lunes = { start: '08:00', end: '20:00' };
   ['Lunes','Martes','Miércoles','Jueves'].forEach(day => { state.schedule[10][day] = '09:00 - 15:00'; });
   persistCurrentWeek();
   const storedWeek = state.week;
   state.week = '2026-08-31';
   state.schedule = {};
+  state.businessHours = defaultBusinessHours();
   restoreWeek(storedWeek);
-  assignedHours(10);
+  ({ hours: assignedHours(10), monday: businessHoursDisplay('Lunes') });
 `, context);
-assert.strictEqual(historyHours, 20);
+assert.strictEqual(historyHours.hours, 20);
+assert.strictEqual(historyHours.monday, '08:00 a 20:00');
 
-console.log(JSON.stringify({ result, informationalAvailability, flexibleDays, freeDayResult }, null, 2));
+console.log(JSON.stringify({ result, informationalAvailability, flexibleDays, editableBusinessHours, freeDayResult, historyHours }, null, 2));
