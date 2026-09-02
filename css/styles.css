@@ -197,7 +197,6 @@ tbody tr:nth-child(even) td.person { background: #eef4ee; }
 .shift-select { width: 100%; min-width: 0; height: 32px; padding: 2px 5px; border-color: #a9c8b2; background: #e8f6ec; color: var(--forest-strong); font-size: 9px; font-weight: 750; }
 .shift-select.off { border-color: #d5dcd4; background: #f7f8f5; color: #68766d; }
 .shift-details { display: grid; gap: 3px; min-height: 64px; padding: 6px 7px; border: 1px solid #cbd3cb; border-radius: 7px; background: #f6f7f3; color: #425249; }
-.shift-details.recommended { border-color: #8fbc9d; background: #f0f9f2; color: var(--forest-strong); }
 .shift-details.opening { border-color: #9fbac8; }
 .shift-details.middle { border-color: #d8bd8e; }
 .shift-details.closing { border-color: #b8abc6; }

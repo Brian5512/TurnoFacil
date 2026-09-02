@@ -10,7 +10,7 @@
     <meta property="og:image" content="https://brian5512.github.io/TurnoFacil/assets/og.png" />
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://brian5512.github.io/TurnoFacil/" />
-    <link rel="stylesheet" href="css/styles.css?v=11" />
+    <link rel="stylesheet" href="css/styles.css?v=12" />
   </head>
   <body>
     <header class="topbar">
@@ -23,7 +23,7 @@
     <main class="workspace">
       <section class="command-center">
         <div class="intro">
-          <div class="intro-copy"><h1 id="week-title">Horario semanal</h1><p>Organiza el equipo completo sin perder de vista horas, disponibilidad y cierres.</p></div>
+          <div class="intro-copy"><h1 id="week-title">Horario semanal</h1><p>Define disponibilidades y asigna cada turno manualmente.</p></div>
           <div class="actions">
           <div class="week-navigation" aria-label="Navegación semanal">
             <button id="previous-week" class="icon-button previous" type="button" aria-label="Semana anterior"><span class="sr-only">Semana anterior</span></button>
@@ -31,7 +31,6 @@
             <button id="next-week" class="icon-button next" type="button" aria-label="Semana siguiente"><span class="sr-only">Semana siguiente</span></button>
             <button id="current-week" class="button secondary compact" type="button">Hoy</button>
           </div>
-          <button id="generate" class="button primary">Generar horario</button>
           </div>
         </div>
         <section id="metrics" class="metrics" aria-label="Resumen de la semana"></section>
@@ -43,7 +42,7 @@
       <section id="alerts-panel" class="alerts-panel" aria-live="polite"></section>
       <section class="panel">
         <div class="panel-toolbar">
-          <div class="panel-heading"><div class="panel-title"><h2>Planificación del equipo</h2><p>Configura disponibilidades y revisa la semana completa.</p></div><div class="tabs" role="tablist" aria-label="Vista del planificador"><button data-view="availability" class="tab active" role="tab" aria-selected="true" aria-controls="schedule-table">Disponibilidades</button><button data-view="schedule" class="tab" role="tab" aria-selected="false" aria-controls="schedule-table">Horario generado</button></div></div>
+          <div class="panel-heading"><div class="panel-title"><h2>Planificación del equipo</h2><p>Configura disponibilidades y asigna los turnos de la semana.</p></div><div class="tabs" role="tablist" aria-label="Vista del planificador"><button data-view="availability" class="tab active" role="tab" aria-selected="true" aria-controls="schedule-table">Disponibilidades</button><button data-view="schedule" class="tab" role="tab" aria-selected="false" aria-controls="schedule-table">Asignación manual</button></div></div>
           <div class="panel-actions"><button id="open-add" class="button add-worker">Agregar trabajador</button></div>
         </div>
         <div class="table-wrap"><table id="schedule-table"></table></div>

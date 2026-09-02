@@ -21,12 +21,12 @@ No requiere instalación ni conexión a Internet. Los datos se guardan automáti
 
 - Agregar trabajadores con nombre, RUT, horas semanales y disponibilidad diaria mediante listas de hora “Desde” y “Hasta”.
 - Registrar el cargo como **Crew** o **Crew-Master** y validar el dígito verificador del RUT al agregarlo.
-- Generar recomendaciones compatibles con la disponibilidad y las horas semanales, mostrando inicio y fin de cada turno.
+- Asignar manualmente cada turno entre opciones compatibles con la disponibilidad, mostrando inicio y fin.
 - Abrir automáticamente la semana vigente según la fecha del sistema, navegar entre semanas, conservar el historial y copiar la semana anterior.
 - Respetar los cierres operacionales: 23:00 de lunes a jueves y domingo; 01:00 del día siguiente viernes y sábado.
 - Aplicar jornadas por contrato: 30 horas en 5x2 (5 días de 6 horas), 20 horas en 4x3 (4 días de 5 horas) y 16 horas solamente sábado y domingo (2 días de 8 horas).
 - Agregar una hora de colación no trabajada a todos los turnos y ofrecer alternativas de inicio cada 30 minutos dentro de la disponibilidad.
-- Distribuir dinámicamente las horas contratadas entre los días realmente disponibles, respetando el máximo de días del patrón y completando las horas cuando la capacidad lo permite.
+- Permitir duraciones manuales cada 30 minutos dentro del rango disponible, sin superar las horas contratadas ni el máximo de días del patrón.
 - Limitar todas las alternativas al horario operativo: inicio desde las 09:00 y término máximo a la 01:00, respetando el cierre específico de cada día.
 - Elegir manualmente entre opciones de turno válidas para cada día.
 - Copiar y pegar turnos solamente cuando caben en la disponibilidad del trabajador de destino.

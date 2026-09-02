@@ -1,6 +1,6 @@
 const days = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
 const storageKey = 'turnofacil-html-v1';
-const appVersion = 3;
+const appVersion = 4;
 const mealBreakHours = 1;
 const openingMinutes = 9 * 60;
 const complete = () => Object.fromEntries(days.map((day) => [day, 'COMPLETA']));
@@ -10,7 +10,7 @@ const seed = [
   { id: 2, name: 'Trabajador 2', rut: '', role: 'Crew', hours: 20, overnight: false, availability: complete() },
 ];
 
-let state = { version: appVersion, employees: seed, week: getMonday(), view: 'availability', schedule: {}, recommendations: {}, history: {} };
+let state = { version: appVersion, employees: seed, week: getMonday(), view: 'availability', schedule: {}, history: {} };
 let shiftClipboard = null;
 let saveTimer;
 const mobileExpandedEmployees = new Set();
@@ -72,8 +72,15 @@ function load() {
       };
       delete state.coverageRules;
       delete state.strategy;
-      Object.values(state.history).forEach((week) => { if (week && typeof week === 'object') delete week.strategy; });
-      if (!state.history[state.week] && (Object.keys(state.schedule || {}).length || Object.keys(state.recommendations || {}).length)) persistCurrentWeek();
+      if (!Object.keys(state.schedule || {}).length && state.recommendations) state.schedule = clone(state.recommendations);
+      delete state.recommendations;
+      Object.values(state.history).forEach((week) => {
+        if (!week || typeof week !== 'object') return;
+        delete week.strategy;
+        if (!Object.keys(week.schedule || {}).length && week.recommendations) week.schedule = clone(week.recommendations);
+        delete week.recommendations;
+      });
+      if (!state.history[state.week] && Object.keys(state.schedule || {}).length) persistCurrentWeek();
     }
   } catch (_) { /* Mantener datos iniciales si el almacenamiento está dañado. */ }
   const systemWeek = getMonday();
@@ -86,13 +93,12 @@ function load() {
 
 function persistCurrentWeek() {
   state.history ??= {};
-  state.history[state.week] = { schedule: clone(state.schedule || {}), recommendations: clone(state.recommendations || {}), updatedAt: new Date().toISOString() };
+  state.history[state.week] = { schedule: clone(state.schedule || {}), updatedAt: new Date().toISOString() };
 }
 
 function restoreWeek(week) {
   const savedWeek = state.history?.[week];
   state.schedule = clone(savedWeek?.schedule || {});
-  state.recommendations = clone(savedWeek?.recommendations || {});
 }
 
 function save() {
@@ -213,8 +219,8 @@ function workPattern(employee) {
 function patternSummary(employee) {
   const pattern = workPattern(employee);
   if (!pattern) return 'Distribución flexible';
-  if (pattern.weekendOnly) return 'Solo sábado y domingo | 8 h + 1 h colación';
-  return `${pattern.code} | horas ajustadas a disponibilidad`;
+  if (pattern.weekendOnly) return 'Solo sábado y domingo | asignación manual';
+  return `${pattern.code} | máximo ${pattern.workDays} días manuales`;
 }
 
 function workWindow(employee, day) {
@@ -244,7 +250,6 @@ function shiftOptions(employee, day, extraDurations = []) {
   const options = [{ value: 'LIBRE', hours: 0, label: 'Libre' }];
   const window = workWindow(employee, day);
   if (!window) return options;
-  const pattern = workPattern(employee);
 
   const collected = new Map();
   const add = (value, note = '') => {
@@ -256,10 +261,10 @@ function shiftOptions(employee, day, extraDurations = []) {
     .map(Number)
     .filter((duration) => Number.isFinite(duration) && duration > 0)
     .map((duration) => Math.round(duration * 2) / 2);
-  const baseDurations = pattern && dynamicDurations.length ? [] : pattern ? [pattern.dailyHours] : [4, 6, 8];
-  const durations = [...new Set([...baseDurations, ...dynamicDurations])]
-    .filter((duration) => duration + mealBreakHours <= window.capacity);
-  if (!durations.length && !pattern) add(`${formatTime(window.start)} - ${formatTime(window.end)}`, 'todo el rango');
+  const maximumWorkHours = Math.max(0, Math.floor((window.capacity - mealBreakHours) * 2) / 2);
+  const manualDurations = Array.from({ length: Math.floor(maximumWorkHours * 2) }, (_, index) => (index + 2) / 2);
+  const durations = [...new Set([...manualDurations, ...dynamicDurations])]
+    .filter((duration) => duration > 0 && duration <= maximumWorkHours);
   durations.forEach((duration) => {
     const elapsedMinutes = (duration + mealBreakHours) * 60;
     for (let start = window.start; start + elapsedMinutes <= window.end; start += 30) {
@@ -271,24 +276,7 @@ function shiftOptions(employee, day, extraDurations = []) {
       add(makeShift(start, duration), note);
     }
   });
-  if (!pattern && window.capacity <= 10 && !durations.some((duration) => Math.abs(duration + mealBreakHours - window.capacity) < 0.01)) {
-    add(`${formatTime(window.start)} - ${formatTime(window.end)}`, 'rango completo');
-  }
   return [...options, ...collected.values()];
-}
-
-function historicalClosingCount(employeeId) {
-  return Object.values(state.history || {}).reduce((total, week) => total + days.filter((day) => {
-    const window = parseWindow(week.schedule?.[employeeId]?.[day]);
-    return window && window.end === closingMinutes(day);
-  }).length, 0);
-}
-
-function optionScore(employee, day, option) {
-  const window = parseWindow(option.value);
-  if (!window) return -Infinity;
-  const closes = window.end === closingMinutes(day);
-  return -(closes ? 70 + historicalClosingCount(employee.id) * 8 : 0) - window.start / 1000;
 }
 
 function patternDayCandidates(employee, pattern) {
@@ -304,20 +292,6 @@ function selectPatternDays(employee, pattern) {
   return selected
     .slice(0, pattern.workDays)
     .sort((a, b) => a.index - b.index);
-}
-
-function allocateContractHours(totalHours, candidates) {
-  const allocations = new Map();
-  let remaining = Number(totalHours || 0);
-  candidates.forEach((candidate, index) => {
-    const futureCapacity = candidates.slice(index + 1).reduce((sum, item) => sum + item.capacity, 0);
-    const minimumHere = Math.max(0, remaining - futureCapacity);
-    const ideal = Math.ceil((remaining / (candidates.length - index)) * 2) / 2;
-    const assigned = Math.min(candidate.capacity, remaining, Math.max(minimumHere, ideal));
-    allocations.set(candidate.day, Math.round(assigned * 2) / 2);
-    remaining = Math.max(0, Math.round((remaining - assigned) * 2) / 2);
-  });
-  return allocations;
 }
 
 function enforceClosingLimits() {
@@ -339,55 +313,11 @@ function enforceClosingLimits() {
       const current = state.schedule?.[employee.id]?.[day];
       if (current && current !== 'LIBRE' && !shiftOptions(employee, day, [shiftHours(current)]).some((option) => option.value === current)) {
         state.schedule[employee.id][day] = 'LIBRE';
-        if (state.recommendations?.[employee.id]) state.recommendations[employee.id][day] = 'LIBRE';
         changed = true;
       }
     }
   }
   if (changed) save();
-}
-
-function bestShift(employee, day, remaining, requestedHours = null) {
-  const pattern = workPattern(employee);
-  const target = requestedHours ?? (pattern ? pattern.dailyHours : Math.min(8, remaining));
-  const options = shiftOptions(employee, day, [target]).filter((option) => option.hours > 0 && (requestedHours === null || Math.abs(option.hours - target) < 0.01));
-  if (!options.length) return null;
-  const notOver = options.filter((option) => option.hours <= remaining + 0.001);
-  const pool = notOver.length ? notOver : options;
-  return pool.sort((a, b) => optionScore(employee, day, b) - optionScore(employee, day, a)
-    || Math.abs(a.hours - target) - Math.abs(b.hours - target))[0];
-}
-
-function generateSchedule() {
-  const schedule = {};
-  const recommendations = {};
-  const orderedEmployees = [...state.employees].sort((a, b) => availabilityCapacity(a) - availabilityCapacity(b));
-  for (const employee of orderedEmployees) {
-    const pattern = workPattern(employee);
-    schedule[employee.id] = emptyDays();
-    recommendations[employee.id] = emptyDays();
-    const capacities = days.map((day) => dayWorkCapacity(employee, day)).filter((capacity) => capacity > 0).sort((a, b) => b - a);
-    let accumulated = 0;
-    let flexibleDays = 0;
-    while (flexibleDays < capacities.length && accumulated < Number(employee.hours || 0)) accumulated += capacities[flexibleDays++];
-    const effectivePattern = pattern || { allowedDays: days, workDays: Math.max(1, flexibleDays), dailyHours: 8 };
-    const candidates = selectPatternDays(employee, effectivePattern);
-    const allocations = allocateContractHours(employee.hours, candidates);
-    for (const candidate of candidates) {
-      const requestedHours = allocations.get(candidate.day) || 0;
-      if (requestedHours <= 0) continue;
-      const option = bestShift(employee, candidate.day, requestedHours, requestedHours);
-      if (!option) continue;
-      schedule[employee.id][candidate.day] = option.value;
-      recommendations[employee.id][candidate.day] = option.value;
-    }
-  }
-  state.schedule = schedule;
-  state.recommendations = recommendations;
-  state.view = 'schedule';
-  save();
-  render();
-  toast('Horario generado según disponibilidad y horas contratadas.');
 }
 
 function weekLabel() {
@@ -471,7 +401,7 @@ function renderAlerts() {
     return;
   }
   const visible = alerts.slice(0, 8);
-  panel.innerHTML = `<div class="alerts-head"><strong>Revisiones recomendadas</strong><span>${alerts.length} alerta${alerts.length === 1 ? '' : 's'}</span></div><div class="alert-list">${visible.map((alert) => `<span class="alert-chip ${alert.type}">${escapeHtml(alert.text)}</span>`).join('')}${alerts.length > visible.length ? `<span class="alert-chip more">${alerts.length - visible.length} adicionales</span>` : ''}</div>`;
+  panel.innerHTML = `<div class="alerts-head"><strong>Revisiones pendientes</strong><span>${alerts.length} alerta${alerts.length === 1 ? '' : 's'}</span></div><div class="alert-list">${visible.map((alert) => `<span class="alert-chip ${alert.type}">${escapeHtml(alert.text)}</span>`).join('')}${alerts.length > visible.length ? `<span class="alert-chip more">${alerts.length - visible.length} adicionales</span>` : ''}</div>`;
 }
 
 function renderTable() {
@@ -509,19 +439,17 @@ function rowHtml(employee, index) {
       return `<td class="day-cell" data-label="${day}"><div class="availability-controls"><label class="availability-line"><span>Desde</span><select class="availability-time-select ${startClass}" data-id="${employee.id}" data-day="${day}" data-action="availability-start" aria-label="Hora de inicio de ${escapeHtml(employee.name)} para ${day}"><option value="COMPLETA" ${availability.start === 'COMPLETA' ? 'selected' : ''}>Completa</option><option value="X" ${availability.start === 'X' ? 'selected' : ''}>No disponible</option><optgroup label="Horas">${startTimeOptionsHtml(day, availability.mode === 'range' ? availability.start : '')}</optgroup></select></label><label class="availability-line"><span>Hasta</span><select class="availability-time-select availability-end" data-id="${employee.id}" data-day="${day}" data-action="availability-end" aria-label="Hora de término de ${escapeHtml(employee.name)} para ${day}" ${availability.mode !== 'range' ? 'disabled' : ''}>${endTimeOptionsHtml(day, availability.mode === 'range' ? availability.start : '', availability.end)}</select></label></div></td>`;
     }
     const current = state.schedule[employee.id]?.[day] || 'LIBRE';
-    const recommended = state.recommendations?.[employee.id]?.[day] || 'LIBRE';
-    const options = shiftOptions(employee, day, [shiftHours(current), shiftHours(recommended)]);
+    const options = shiftOptions(employee, day, [shiftHours(current)]);
     if (current !== 'LIBRE' && !options.some((option) => option.value === current)) {
       options.splice(1, 0, { value: current, hours: shiftHours(current), label: `${shiftDescription(current)} | guardado` });
     }
     const currentWindow = parseWindow(current);
-    const isRecommended = current !== 'LIBRE' && current === recommended;
     const kind = currentWindow ? currentWindow.start === openingMinutes ? 'opening' : currentWindow.end === closingMinutes(day) ? 'closing' : 'middle' : 'free';
     const details = currentWindow
-      ? `<div class="shift-details ${isRecommended ? 'recommended' : ''} ${kind}"><div class="shift-details-head"><span>${isRecommended ? 'Recomendado' : kind === 'opening' ? 'Apertura' : kind === 'closing' ? 'Cierre' : 'Turno elegido'}</span><strong>${formatNumber(shiftHours(current))} h trabajo</strong></div><div class="shift-times"><span><small>Inicio</small><b>${formatTime(currentWindow.start)}</b></span><i>a</i><span><small>Fin</small><b>${formatTime(currentWindow.end)}</b></span></div><div class="meal-note">Incluye 1 h de colación</div></div>`
+      ? `<div class="shift-details ${kind}"><div class="shift-details-head"><span>${kind === 'opening' ? 'Apertura' : kind === 'closing' ? 'Cierre' : 'Turno manual'}</span><strong>${formatNumber(shiftHours(current))} h trabajo</strong></div><div class="shift-times"><span><small>Inicio</small><b>${formatTime(currentWindow.start)}</b></span><i>a</i><span><small>Fin</small><b>${formatTime(currentWindow.end)}</b></span></div><div class="meal-note">Incluye 1 h de colación</div></div>`
       : '<div class="shift-free">Sin turno asignado</div>';
-    const canPaste = Boolean(shiftClipboard && shiftOptions(employee, day, [shiftClipboard.hours]).some((option) => option.value === shiftClipboard.value));
-    return `<td class="day-cell" data-label="${day}"><div class="shift-cell"><select class="shift-select ${current === 'LIBRE' ? 'off' : ''}" data-id="${employee.id}" data-day="${day}" data-action="shift" aria-label="Turno de ${escapeHtml(employee.name)} para ${day}">${options.map((option) => { const label = option.value !== 'LIBRE' && option.value === recommended ? `Recomendada | ${option.label}` : option.label; return `<option value="${escapeHtml(option.value)}" ${option.value === current ? 'selected' : ''}>${escapeHtml(label)}</option>`; }).join('')}</select>${details}<div class="shift-tools"><button type="button" data-action="copy-shift" data-id="${employee.id}" data-day="${day}" ${current === 'LIBRE' ? 'disabled' : ''}>Copiar</button><button type="button" data-action="paste-shift" data-id="${employee.id}" data-day="${day}" ${canPaste ? '' : 'disabled'}>Pegar</button></div></div></td>`;
+    const canPaste = Boolean(shiftClipboard && !assignmentValidationMessage(employee, day, shiftClipboard.value));
+    return `<td class="day-cell" data-label="${day}"><div class="shift-cell"><select class="shift-select ${current === 'LIBRE' ? 'off' : ''}" data-id="${employee.id}" data-day="${day}" data-action="shift" aria-label="Turno de ${escapeHtml(employee.name)} para ${day}">${options.map((option) => `<option value="${escapeHtml(option.value)}" ${option.value === current ? 'selected' : ''}>${escapeHtml(option.label)}</option>`).join('')}</select>${details}<div class="shift-tools"><button type="button" data-action="copy-shift" data-id="${employee.id}" data-day="${day}" ${current === 'LIBRE' ? 'disabled' : ''}>Copiar</button><button type="button" data-action="paste-shift" data-id="${employee.id}" data-day="${day}" ${canPaste ? '' : 'disabled'}>Pegar</button></div></div></td>`;
   }).join('');
   const hoursCell = state.view === 'schedule'
     ? `<div class="hours-summary ${hoursClass}"><strong>${formatNumber(assigned)}</strong><span>/ ${formatNumber(employee.hours)} h</span><small>${patternSummary(employee)}</small></div>`
@@ -560,8 +488,8 @@ function updateAvailabilityFormPattern() {
   const hours = Number($('#employee-hours').value || 0);
   const pattern = workPattern({ hours });
   const note = $('#availability-pattern-note');
-  if (pattern?.weekendOnly) note.textContent = '16 horas: sábado y domingo. Las horas se reparten según la disponibilidad de ambos días, más 1 hora de colación por turno.';
-  else if (pattern) note.textContent = `${hours} horas: máximo ${pattern.workDays} días de trabajo (${pattern.code}); las horas diarias se ajustan para completar el contrato según disponibilidad.`;
+  if (pattern?.weekendOnly) note.textContent = '16 horas: asigna manualmente los turnos de sábado y domingo. Cada turno suma 1 hora de colación.';
+  else if (pattern) note.textContent = `${hours} horas: distribuye los turnos manualmente en un máximo de ${pattern.workDays} días de trabajo (${pattern.code}).`;
   else note.textContent = 'Selecciona completa, no disponible o un rango horario.';
   $$('.availability-row').forEach((row) => {
     const locked = Boolean(pattern?.weekendOnly && !pattern.allowedDays.includes(row.dataset.formDay));
@@ -641,11 +569,6 @@ function formatRut(value) {
   return `${grouped}-${verifier}`;
 }
 
-function clearEmployeeSchedule(id) {
-  delete state.schedule[id];
-  delete state.recommendations[id];
-}
-
 function onCellChange(event) {
   const employee = state.employees.find((item) => item.id === Number(event.target.dataset.id));
   if (!employee) return;
@@ -653,7 +576,6 @@ function onCellChange(event) {
   if (field === 'hours') employee.hours = Number(event.target.value);
   else if (field === 'rut') employee.rut = formatRut(event.target.value);
   else employee[field] = field === 'role' ? normalizeEmployeeRole(event.target.value) : event.target.value.trim();
-  clearEmployeeSchedule(employee.id);
   save();
   render();
 }
@@ -672,7 +594,7 @@ function onAvailabilityStartChange(event) {
     const end = canKeepEnd ? current.end : defaultEndForDay(day, start);
     employee.availability[day] = `${start} - ${end}`;
   }
-  clearEmployeeSchedule(employee.id);
+  enforceClosingLimits();
   save();
   render();
 }
@@ -688,17 +610,40 @@ function onAvailabilityEndChange(event) {
     return;
   }
   employee.availability[day] = `${current.start} - ${event.target.value}`;
-  clearEmployeeSchedule(employee.id);
+  enforceClosingLimits();
   save();
   render();
 }
 
 function onShiftChange(event) {
   const id = Number(event.target.dataset.id);
+  const day = event.target.dataset.day;
+  const employee = state.employees.find((item) => item.id === id);
+  if (!employee) return;
+  const error = assignmentValidationMessage(employee, day, event.target.value);
+  if (error) {
+    toast(error);
+    render();
+    return;
+  }
   state.schedule[id] ??= emptyDays();
-  state.schedule[id][event.target.dataset.day] = event.target.value;
+  state.schedule[id][day] = event.target.value;
   save();
   render();
+}
+
+function assignmentValidationMessage(employee, day, value) {
+  if (!value || value === 'LIBRE') return '';
+  if (!shiftOptions(employee, day, [shiftHours(value)]).some((option) => option.value === value)) return 'Ese turno no cabe en la disponibilidad seleccionada.';
+  const current = state.schedule?.[employee.id]?.[day] || 'LIBRE';
+  const hoursWithoutDay = assignedHours(employee.id) - shiftHours(current);
+  if (hoursWithoutDay + shiftHours(value) > Number(employee.hours || 0) + 0.001) return `El turno supera las ${formatNumber(employee.hours)} horas contratadas.`;
+  const pattern = workPattern(employee);
+  if (pattern && current === 'LIBRE') {
+    const usedDays = days.filter((item) => item !== day && shiftHours(state.schedule?.[employee.id]?.[item]) > 0).length;
+    if (usedDays >= pattern.workDays) return `El contrato ${pattern.code} permite un máximo de ${pattern.workDays} días trabajados.`;
+  }
+  return '';
 }
 
 function copyShift(event) {
@@ -715,9 +660,9 @@ function pasteShift(event) {
   const id = Number(event.currentTarget.dataset.id);
   const day = event.currentTarget.dataset.day;
   const employee = state.employees.find((item) => item.id === id);
-  const valid = shiftClipboard && employee && shiftOptions(employee, day, [shiftClipboard.hours]).some((option) => option.value === shiftClipboard.value);
-  if (!valid) {
-    toast('Ese turno no cabe en la disponibilidad seleccionada.');
+  const error = shiftClipboard && employee ? assignmentValidationMessage(employee, day, shiftClipboard.value) : 'No hay un turno válido para pegar.';
+  if (error) {
+    toast(error);
     return;
   }
   state.schedule[id] ??= emptyDays();
@@ -731,7 +676,7 @@ function toggleOvernight(event) {
   const employee = state.employees.find((item) => item.id === Number(event.currentTarget.dataset.id));
   if (!employee) return;
   employee.overnight = !employee.overnight;
-  clearEmployeeSchedule(employee.id);
+  enforceClosingLimits();
   save();
   render();
 }
@@ -741,10 +686,8 @@ function deleteEmployee(event) {
   if (!window.confirm('¿Eliminar este trabajador? Sus turnos guardados también se eliminarán.')) return;
   state.employees = state.employees.filter((item) => item.id !== id);
   delete state.schedule[id];
-  delete state.recommendations[id];
   Object.values(state.history || {}).forEach((week) => {
     if (week.schedule) delete week.schedule[id];
-    if (week.recommendations) delete week.recommendations[id];
   });
   save();
   render();
@@ -768,7 +711,6 @@ function copyPreviousWeek() {
     return;
   }
   state.schedule = clone(saved.schedule);
-  state.recommendations = clone(saved.recommendations || saved.schedule);
   enforceClosingLimits();
   state.view = 'schedule';
   save();
@@ -826,7 +768,14 @@ async function importBackup(event) {
     };
     delete state.coverageRules;
     delete state.strategy;
-    Object.values(state.history).forEach((week) => { if (week && typeof week === 'object') delete week.strategy; });
+    if (!Object.keys(state.schedule || {}).length && state.recommendations) state.schedule = clone(state.recommendations);
+    delete state.recommendations;
+    Object.values(state.history).forEach((week) => {
+      if (!week || typeof week !== 'object') return;
+      delete week.strategy;
+      if (!Object.keys(week.schedule || {}).length && week.recommendations) week.schedule = clone(week.recommendations);
+      delete week.recommendations;
+    });
     state.view = ['availability', 'schedule'].includes(state.view) ? state.view : 'availability';
     enforceClosingLimits();
     save();
@@ -921,8 +870,8 @@ function render() {
   $('#week-title').textContent = `Semana del ${weekLabel()}`;
   $('#row-count').textContent = `${state.employees.length} trabajadores`;
   $('#view-hint').innerHTML = state.view === 'availability'
-    ? 'Define la disponibilidad real; el generador nunca asignará un turno fuera de estos rangos.'
-    : 'Puedes cambiar, copiar y pegar turnos válidos. Cada turno incluye <b>1 hora de colación</b>.';
+    ? 'Define la disponibilidad real. Solo aparecerán turnos que respeten estos rangos.'
+    : 'Asigna, cambia, copia y pega turnos manualmente. Cada turno incluye <b>1 hora de colación</b>.';
   $$('.tab').forEach((tab) => {
     const active = tab.dataset.view === state.view;
     tab.classList.toggle('active', active);
@@ -933,7 +882,6 @@ function render() {
   renderTable();
 }
 
-$('#generate').addEventListener('click', generateSchedule);
 $('#previous-week').addEventListener('click', () => changeWeek(addDaysToDate(state.week, -7)));
 $('#next-week').addEventListener('click', () => changeWeek(addDaysToDate(state.week, 7)));
 $('#current-week').addEventListener('click', () => changeWeek(getMonday()));
