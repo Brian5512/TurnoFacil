@@ -173,13 +173,12 @@ function defaultEndForDay(day, start) {
   return formatTime(Math.min(parseTime(start) + 8 * 60, closingMinutes(day)));
 }
 
-function scheduleTimeOptionsHtml(selected = '', includeFree = false) {
-  const free = includeFree ? `<option value="LIBRE" ${selected === 'LIBRE' ? 'selected' : ''}>Libre</option>` : '';
-  const blank = !includeFree && !selected ? '<option value="" selected>—</option>' : '';
-  const current = selected && selected !== 'LIBRE' && !scheduleTimeValues.includes(selected)
+function scheduleTimeOptionsHtml(selected = '') {
+  const blank = !selected ? '<option value="" selected>—</option>' : '';
+  const current = selected && !scheduleTimeValues.includes(selected)
     ? `<option value="${selected}" selected>${selected}</option>`
     : '';
-  return `${free}${blank}${current}${scheduleTimeValues.map((time) => `<option value="${time}" ${time === selected ? 'selected' : ''}>${time}</option>`).join('')}`;
+  return `${blank}${current}${scheduleTimeValues.map((time) => `<option value="${time}" ${time === selected ? 'selected' : ''}>${time}</option>`).join('')}`;
 }
 
 function parseWindow(value) {
@@ -225,32 +224,21 @@ function workPattern(employee) {
   return null;
 }
 
-function workWindow(employee, day) {
-  const availability = String(employee.availability[day] || '').trim().toUpperCase();
+function scheduleWindow(employee, day) {
   const pattern = workPattern(employee);
-  if ((pattern && !pattern.allowedDays.includes(day)) || !availability || availability === 'X') return null;
-  const employeeClosing = employee.overnight ? closingMinutes(day) : Math.min(closingMinutes(day), 1440);
-  const rawWindow = parseWindow(availability);
-  if (rawWindow) {
-    const start = Math.max(rawWindow.start, openingMinutes);
-    const end = Math.min(rawWindow.end, employeeClosing);
-    if (start >= end) return null;
-    return { start, end, capacity: (end - start) / 60, ranged: true };
-  }
-  if (availability !== 'COMPLETA') return null;
-  const start = openingMinutes;
-  if (start >= employeeClosing) return null;
-  return { start, end: employeeClosing, capacity: (employeeClosing - start) / 60, ranged: false };
+  if (pattern && !pattern.allowedDays.includes(day)) return null;
+  const end = employee.overnight ? closingMinutes(day) : Math.min(closingMinutes(day), 1440);
+  return { start: 0, end, capacity: end / 60, ranged: false };
 }
 
 function dayWorkCapacity(employee, day) {
-  const capacity = (workWindow(employee, day)?.capacity ?? 0) - mealBreakHours;
+  const capacity = (scheduleWindow(employee, day)?.capacity ?? 0) - mealBreakHours;
   return Math.max(0, Math.floor(capacity * 2) / 2);
 }
 
 function shiftOptions(employee, day, extraDurations = []) {
   const options = [{ value: 'LIBRE', hours: 0, label: 'Libre' }];
-  const window = workWindow(employee, day);
+  const window = scheduleWindow(employee, day);
   if (!window) return options;
 
   const collected = new Map();
@@ -270,30 +258,13 @@ function shiftOptions(employee, day, extraDurations = []) {
   durations.forEach((duration) => {
     const elapsedMinutes = (duration + mealBreakHours) * 60;
     for (let start = window.start; start + elapsedMinutes <= window.end; start += 30) {
-      const note = start === window.start
-        ? window.ranged ? 'desde disponibilidad' : ''
-        : start + elapsedMinutes === window.end
-          ? window.ranged ? 'hasta fin disponible' : closingMinutes(day) > 1440 && employee.overnight ? 'cierre 01:00' : 'hasta cierre'
-          : '';
+      const note = start + elapsedMinutes === window.end
+        ? closingMinutes(day) > 1440 && employee.overnight ? 'cierre 01:00' : 'hasta cierre'
+        : '';
       add(makeShift(start, duration), note);
     }
   });
   return [...options, ...collected.values()];
-}
-
-function patternDayCandidates(employee, pattern) {
-  return pattern.allowedDays
-    .map((day) => ({ day, capacity: dayWorkCapacity(employee, day), index: days.indexOf(day) }))
-    .filter((candidate) => candidate.capacity > 0);
-}
-
-function selectPatternDays(employee, pattern) {
-  const candidates = patternDayCandidates(employee, pattern).sort((a, b) => a.index - b.index);
-  let selected = candidates.slice(0, pattern.workDays);
-  if (selected.reduce((sum, candidate) => sum + candidate.capacity, 0) < Number(employee.hours || 0)) selected = [...candidates].sort((a, b) => b.capacity - a.capacity || a.index - b.index).slice(0, pattern.workDays);
-  return selected
-    .slice(0, pattern.workDays)
-    .sort((a, b) => a.index - b.index);
 }
 
 function enforceClosingLimits() {
@@ -330,41 +301,6 @@ function weekLabel() {
   return `${formatter.format(start)} al ${formatter.format(end)}`;
 }
 
-function availabilityCapacity(employee) {
-  const pattern = workPattern(employee);
-  if (pattern) {
-    return selectPatternDays(employee, pattern).reduce((sum, candidate) => sum + candidate.capacity, 0);
-  }
-  return days.filter((day) => shiftOptions(employee, day).length > 1).reduce((total, day) => {
-    const max = Math.max(...shiftOptions(employee, day).map((option) => option.hours));
-    return total + max;
-  }, 0);
-}
-
-function contractAvailabilityMessage(employee) {
-  const contractedHours = Number(employee.hours || 0);
-  const pattern = workPattern(employee);
-  if (!pattern) {
-    const capacity = availabilityCapacity(employee);
-    return capacity + 0.01 < contractedHours
-      ? `La disponibilidad permite ${formatNumber(capacity)} de ${formatNumber(contractedHours)} horas contratadas.`
-      : '';
-  }
-
-  const candidates = patternDayCandidates(employee, pattern);
-  if (candidates.length < pattern.workDays) {
-    return `El contrato ${pattern.code} requiere disponibilidad en ${pattern.workDays} días; actualmente hay ${candidates.length}.`;
-  }
-  const capacity = [...candidates]
-    .sort((a, b) => b.capacity - a.capacity || a.index - b.index)
-    .slice(0, pattern.workDays)
-    .reduce((sum, candidate) => sum + candidate.capacity, 0);
-  if (capacity + 0.01 < contractedHours) {
-    return `La disponibilidad permite ${formatNumber(capacity)} de ${formatNumber(contractedHours)} horas dentro de los ${pattern.workDays} días del contrato ${pattern.code}.`;
-  }
-  return '';
-}
-
 function assignedHours(employeeId) {
   return days.reduce((sum, day) => sum + shiftHours(state.schedule[employeeId]?.[day]), 0);
 }
@@ -397,8 +333,6 @@ function buildAlerts() {
   const alerts = [];
   state.employees.forEach((employee) => {
     if (!isValidRut(employee.rut)) alerts.push({ type: 'data', text: `${employee.name}: RUT pendiente o inválido.` });
-    const availabilityIssue = contractAvailabilityMessage(employee);
-    if (availabilityIssue) alerts.push({ type: 'warning', text: `${employee.name}: ${availabilityIssue}` });
     if (state.view !== 'availability' && state.schedule[employee.id] && !followsWorkPattern(employee)) {
       const pattern = workPattern(employee);
       const assigned = assignedHours(employee.id);
@@ -433,6 +367,7 @@ function renderTable() {
   table.querySelectorAll('[data-action="availability-end"]').forEach((select) => select.addEventListener('change', onAvailabilityEndChange));
   table.querySelectorAll('[data-action="shift-start"]').forEach((select) => select.addEventListener('change', onShiftStartChange));
   table.querySelectorAll('[data-action="shift-end"]').forEach((select) => select.addEventListener('change', onShiftEndChange));
+  table.querySelectorAll('[data-action="free-day"]').forEach((button) => button.addEventListener('click', setFreeDay));
   table.querySelectorAll('[data-action="copy-shift"]').forEach((button) => button.addEventListener('click', copyShift));
   table.querySelectorAll('[data-action="paste-shift"]').forEach((button) => button.addEventListener('click', pasteShift));
   table.querySelectorAll('[data-action="toggle-mobile-worker"]').forEach((button) => button.addEventListener('click', toggleMobileWorker));
@@ -459,13 +394,10 @@ function rowHtml(employee, index) {
     }
     const current = state.schedule[employee.id]?.[day] || 'LIBRE';
     const currentWindow = parseWindow(current);
-    const selectedStart = currentWindow ? formatTime(currentWindow.start) : 'LIBRE';
+    const selectedStart = currentWindow ? formatTime(currentWindow.start) : '';
     const selectedEnd = currentWindow ? formatTime(currentWindow.end) : '';
-    const summary = currentWindow
-      ? `<span class="shift-duration"><strong>${formatNumber(shiftHours(current))} h</strong> + 1 h colación</span>`
-      : '<span class="shift-duration empty">Sin turno</span>';
     const canPaste = Boolean(shiftClipboard && !assignmentValidationMessage(employee, day, shiftClipboard.value));
-    return `<td class="day-cell" data-label="${day}"><div class="shift-cell"><div class="shift-time-grid"><label class="shift-time-field"><span>Desde</span><select class="shift-time-select shift-start-select ${current === 'LIBRE' ? 'off' : ''}" data-id="${employee.id}" data-day="${day}" data-action="shift-start" aria-label="Hora de inicio de ${escapeHtml(employee.name)} para ${day}">${scheduleTimeOptionsHtml(selectedStart, true)}</select></label><label class="shift-time-field"><span>Hasta</span><select class="shift-time-select" data-id="${employee.id}" data-day="${day}" data-action="shift-end" aria-label="Hora de término de ${escapeHtml(employee.name)} para ${day}" ${currentWindow ? '' : 'disabled'}>${scheduleTimeOptionsHtml(selectedEnd)}</select></label></div>${summary}<div class="shift-tools"><button type="button" data-action="copy-shift" data-id="${employee.id}" data-day="${day}" ${current === 'LIBRE' ? 'disabled' : ''}>Copiar</button><button type="button" data-action="paste-shift" data-id="${employee.id}" data-day="${day}" ${canPaste ? '' : 'disabled'}>Pegar</button></div></div></td>`;
+    return `<td class="day-cell" data-label="${day}"><div class="shift-cell"><div class="shift-time-grid"><label class="shift-time-field"><span>Desde</span><select class="shift-time-select shift-start-select ${current === 'LIBRE' ? 'off' : ''}" data-id="${employee.id}" data-day="${day}" data-action="shift-start" aria-label="Hora de inicio de ${escapeHtml(employee.name)} para ${day}">${scheduleTimeOptionsHtml(selectedStart)}</select></label><label class="shift-time-field"><span>Hasta</span><select class="shift-time-select" data-id="${employee.id}" data-day="${day}" data-action="shift-end" aria-label="Hora de término de ${escapeHtml(employee.name)} para ${day}" ${currentWindow ? '' : 'disabled'}>${scheduleTimeOptionsHtml(selectedEnd)}</select></label></div><div class="shift-actions"><button type="button" class="shift-free-button ${current === 'LIBRE' ? 'active' : ''}" data-action="free-day" data-id="${employee.id}" data-day="${day}" aria-pressed="${current === 'LIBRE'}">Libre</button><div class="shift-tools"><button type="button" data-action="copy-shift" data-id="${employee.id}" data-day="${day}" ${current === 'LIBRE' ? 'disabled' : ''}>Copiar</button><button type="button" data-action="paste-shift" data-id="${employee.id}" data-day="${day}" ${canPaste ? '' : 'disabled'}>Pegar</button></div></div></div></td>`;
   }).join('');
   const hoursCell = state.view === 'schedule'
     ? `<div class="hours-summary ${hoursClass}"><strong>${formatNumber(assigned)}</strong><span>/ ${formatNumber(employee.hours)} h</span></div>`
@@ -501,24 +433,12 @@ function renderAvailabilityForm() {
 }
 
 function updateAvailabilityFormPattern() {
-  const hours = Number($('#employee-hours').value || 0);
-  const pattern = workPattern({ hours });
   const note = $('#availability-pattern-note');
-  if (pattern?.weekendOnly) note.textContent = '16 horas: requiere disponibilidad y turnos en sábado y domingo. Cada turno suma 1 hora de colación.';
-  else if (pattern) note.textContent = `${hours} horas: requiere disponibilidad y turnos en exactamente ${pattern.workDays} días de trabajo (${pattern.code}).`;
-  else note.textContent = 'Selecciona completa, no disponible o un rango horario.';
+  note.textContent = 'Información de referencia: no limita la asignación manual de turnos.';
   $$('.availability-row').forEach((row) => {
-    const locked = Boolean(pattern?.weekendOnly && !pattern.allowedDays.includes(row.dataset.formDay));
-    const wasLocked = row.classList.contains('pattern-disabled');
-    row.classList.toggle('pattern-disabled', locked);
+    row.classList.remove('pattern-disabled');
     const mode = row.querySelector('.availability-mode');
-    mode.disabled = locked;
-    if (locked) {
-      mode.value = 'unavailable';
-      row.querySelector('.time-fields').hidden = true;
-    } else if (wasLocked) {
-      mode.value = 'complete';
-    }
+    mode.disabled = false;
   });
 }
 
@@ -540,14 +460,9 @@ function addEmployeeFromForm(event) {
     return;
   }
   const weeklyHours = Number($('#employee-hours').value);
-  const pattern = workPattern({ hours: weeklyHours });
   const availability = {};
   for (const row of $$('.availability-row')) {
     const day = row.dataset.formDay;
-    if (pattern?.weekendOnly && !pattern.allowedDays.includes(day)) {
-      availability[day] = 'X';
-      continue;
-    }
     const mode = row.querySelector('.availability-mode').value;
     if (mode === 'unavailable') availability[day] = 'X';
     else if (mode === 'complete') availability[day] = 'COMPLETA';
@@ -570,11 +485,6 @@ function addEmployeeFromForm(event) {
     overnight: $('#employee-overnight').checked,
     availability,
   };
-  const availabilityIssue = contractAvailabilityMessage(employee);
-  if (availabilityIssue) {
-    toast(availabilityIssue);
-    return;
-  }
   state.employees.push(employee);
   save();
   $('#employee-dialog').close();
@@ -595,17 +505,7 @@ function onCellChange(event) {
   const employee = state.employees.find((item) => item.id === Number(event.target.dataset.id));
   if (!employee) return;
   const field = event.target.dataset.field;
-  if (field === 'hours') {
-    const previousHours = employee.hours;
-    employee.hours = Number(event.target.value);
-    const availabilityIssue = contractAvailabilityMessage(employee);
-    if (availabilityIssue) {
-      employee.hours = previousHours;
-      toast(availabilityIssue);
-      render();
-      return;
-    }
-  }
+  if (field === 'hours') employee.hours = Number(event.target.value);
   else if (field === 'rut') employee.rut = formatRut(event.target.value);
   else employee[field] = field === 'role' ? normalizeEmployeeRole(event.target.value) : event.target.value.trim();
   save();
@@ -658,13 +558,7 @@ function onShiftStartChange(event) {
   const day = event.target.dataset.day;
   const employee = state.employees.find((item) => item.id === id);
   if (!employee) return;
-  if (event.target.value === 'LIBRE') {
-    state.schedule[id] ??= emptyDays();
-    state.schedule[id][day] = 'LIBRE';
-    save();
-    render();
-    return;
-  }
+  if (!event.target.value) return;
   const candidates = validShiftOptionsForStart(employee, day, event.target.value);
   if (!candidates.length) {
     toast(`No hay un turno válido desde las ${event.target.value} para ${day}.`);
@@ -676,6 +570,16 @@ function onShiftStartChange(event) {
   candidates.sort((a, b) => Math.abs(a.hours - targetHours) - Math.abs(b.hours - targetHours) || a.hours - b.hours);
   state.schedule[id] ??= emptyDays();
   state.schedule[id][day] = candidates[0].value;
+  save();
+  render();
+}
+
+function setFreeDay(event) {
+  const id = Number(event.currentTarget.dataset.id);
+  const day = event.currentTarget.dataset.day;
+  if (!state.employees.some((employee) => employee.id === id)) return;
+  state.schedule[id] ??= emptyDays();
+  state.schedule[id][day] = 'LIBRE';
   save();
   render();
 }
@@ -701,7 +605,7 @@ function onShiftEndChange(event) {
 
 function assignmentValidationMessage(employee, day, value) {
   if (!value || value === 'LIBRE') return '';
-  if (!shiftOptions(employee, day, [shiftHours(value)]).some((option) => option.value === value)) return 'Ese turno no cabe en la disponibilidad seleccionada.';
+  if (!shiftOptions(employee, day, [shiftHours(value)]).some((option) => option.value === value)) return 'Ese turno no respeta el horario permitido para ese día.';
   return contractAssignmentMessage(employee, day, value);
 }
 
@@ -962,8 +866,8 @@ function render() {
   $('#week-title').textContent = `Semana del ${weekLabel()}`;
   $('#row-count').textContent = `${state.employees.length} trabajadores`;
   $('#view-hint').innerHTML = state.view === 'availability'
-    ? 'Define la disponibilidad real. Solo aparecerán turnos que respeten estos rangos.'
-    : 'Asigna, cambia, copia y pega turnos manualmente. Cada turno incluye <b>1 hora de colación</b>.';
+    ? 'Disponibilidad informativa para consultar cuándo puede trabajar cada persona; no modifica el horario.'
+    : 'La columna <b>Asignadas</b> suma automáticamente las horas de los turnos. Cada turno descuenta 1 hora de colación.';
   $$('.tab').forEach((tab) => {
     const active = tab.dataset.view === state.view;
     tab.classList.toggle('active', active);

@@ -2,7 +2,7 @@
 
 ## Producto
 
-TurnoFácil es un planificador semanal local para construir horarios de trabajo a partir de la disponibilidad real y las horas contratadas de cada integrante. Debe funcionar como una herramienta operativa rápida, comprensible y confiable, tanto abierta directamente desde el computador como publicada en GitHub Pages.
+TurnoFácil es un planificador semanal local para construir horarios de trabajo manuales y consultar por separado la disponibilidad de cada integrante. Debe funcionar como una herramienta operativa rápida, comprensible y confiable, tanto abierta directamente desde el computador como publicada en GitHub Pages.
 
 ## Usuario principal
 
@@ -12,7 +12,7 @@ La persona encargada de organizar los turnos de un equipo en Chile. Trabaja prin
 
 1. Registrar trabajadores con nombre, RUT, cargo, horas semanales y permiso de cierre.
 2. Definir disponibilidad por día mediante una jornada completa, un rango de inicio y fin o no disponibilidad.
-3. Asignar cada turno manualmente entre alternativas que respeten disponibilidad, contrato y reglas de jornada.
+3. Asignar cada turno manualmente respetando el contrato y las reglas de jornada, usando la disponibilidad solo como referencia.
 4. Revisar las alertas de horas pendientes y ajustar la semana.
 5. Guardar historial, respaldar datos y exportar el resultado a Excel o PDF.
 
@@ -22,13 +22,13 @@ La persona encargada de organizar los turnos de un equipo en Chile. Trabaja prin
 - Los cargos disponibles son Crew y Crew-Master.
 - Los contratos de 30 horas deben completar exactamente 5 días de trabajo y 2 de descanso (5x2).
 - Los contratos de 20 horas deben completar exactamente 4 días de trabajo y 3 de descanso (4x3).
-- La disponibilidad se valida al crear al trabajador para asegurar que permita completar los días y horas pactados.
+- La disponibilidad es informativa para el administrador y no bloquea la asignación manual.
 - Los contratos de 16 horas trabajan solo fines de semana.
 - Cada turno suma una hora de colación a las horas efectivamente trabajadas.
-- Los turnos pueden comenzar desde las 09:00.
+- Los selectores manuales permiten comenzar desde las 00:00.
 - Lunes a jueves y domingo cierran a las 23:00.
 - Viernes y sábado pueden extenderse hasta la 01:00 del día siguiente.
-- Los turnos manuales nunca deben exceder la disponibilidad indicada.
+- Los turnos manuales pueden diferir de la disponibilidad indicada por decisión del administrador.
 - El estado se conserva localmente en el navegador.
 - La semana completa debe verse sin desplazamiento horizontal en computador.
 

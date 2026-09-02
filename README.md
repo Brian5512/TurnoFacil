@@ -21,16 +21,17 @@ No requiere instalación ni conexión a Internet. Los datos se guardan automáti
 
 - Agregar trabajadores con nombre, RUT, horas semanales y disponibilidad diaria mediante listas de hora “Desde” y “Hasta”.
 - Registrar el cargo como **Crew** o **Crew-Master** y validar el dígito verificador del RUT al agregarlo.
-- Editar manualmente cada turno con dos listas, **Desde** y **Hasta**, que muestran horas cada 30 minutos entre 00:00 y 23:00 y validan la disponibilidad antes de guardar.
+- Editar manualmente cada turno con dos listas, **Desde** y **Hasta**, que muestran horas cada 30 minutos entre 00:00 y 23:00.
+- Marcar un día sin turno mediante su botón **Libre** y sumar automáticamente las horas de todos los turnos en la columna **Asignadas**.
 - Abrir automáticamente la semana vigente según la fecha del sistema, navegar entre semanas, conservar el historial y copiar la semana anterior.
 - Respetar los cierres operacionales: 23:00 de lunes a jueves y domingo; 01:00 del día siguiente viernes y sábado.
 - Aplicar jornadas por contrato: 30 horas en 5x2 (5 días de 6 horas), 20 horas en 4x3 (4 días de 5 horas) y 16 horas solamente sábado y domingo (2 días de 8 horas).
-- Agregar una hora de colación no trabajada a todos los turnos y ofrecer alternativas de inicio cada 30 minutos dentro de la disponibilidad.
-- Permitir duraciones manuales cada 30 minutos dentro del rango disponible, completando las horas contratadas en exactamente 5 días para 5x2, 4 días para 4x3 y sábado y domingo para 16 horas.
-- Validar al agregar un trabajador que su disponibilidad tenga suficientes días y capacidad horaria para cumplir el contrato.
-- Limitar todas las alternativas al horario operativo: inicio desde las 09:00 y término máximo a la 01:00, respetando el cierre específico de cada día.
+- Agregar una hora de colación no trabajada a todos los turnos y ofrecer alternativas de inicio cada 30 minutos.
+- Permitir duraciones manuales cada 30 minutos, completando las horas contratadas en exactamente 5 días para 5x2, 4 días para 4x3 y sábado y domingo para 16 horas.
+- Consultar la disponibilidad como información de referencia, sin bloquear ni modificar la asignación manual del administrador.
+- Permitir seleccionar horas desde las 00:00 y respetar el cierre máximo específico de cada día.
 - Elegir manualmente entre opciones de turno válidas para cada día.
-- Copiar y pegar turnos solamente cuando caben en la disponibilidad del trabajador de destino.
+- Copiar y pegar turnos respetando las reglas contractuales y el cierre de cada día.
 - Comparar horas asignadas con horas contratadas.
 - Descargar el horario para Excel y guardarlo como PDF mediante la impresión del navegador.
 - Abrir una vista individual con turno diario, horas históricas y cantidad de cierres por trabajador.

@@ -52,12 +52,14 @@ vm.runInContext(`
 const result = vm.runInContext(`({
   assigned: assignedHours(10),
   exactPattern: followsWorkPattern(state.employees[0]),
-  validAvailability: contractAvailabilityMessage(state.employees[0]),
   validRut: isValidRut('12.345.678-5'),
   alerts: buildAlerts().length,
   firstScheduleTime: scheduleTimeValues[0],
   lastScheduleTime: scheduleTimeValues.at(-1),
   scheduleFieldCount: (rowHtml(state.employees[0]).match(/data-action="shift-start"/g) || []).length,
+  freeButtonCount: (rowHtml(state.employees[0]).match(/data-action="free-day"/g) || []).length,
+  noCellHoursSummary: !rowHtml(state.employees[0]).includes('shift-duration'),
+  noFreeOptionInTimeList: !scheduleTimeOptionsHtml('').includes('Libre'),
   closingWithoutNextDay: closingDisplay('Viernes'),
   endOptionsWithoutNextDay: !endTimeOptionsHtml('Viernes', '23:00', '01:00').includes('+1 día'),
   incompleteLastDayMessage: assignmentValidationMessage(state.employees[0], 'Jueves', '09:00 - 14:00'),
@@ -66,30 +68,35 @@ const result = vm.runInContext(`({
 
 assert.strictEqual(result.assigned, 20);
 assert.strictEqual(result.exactPattern, true);
-assert.strictEqual(result.validAvailability, '');
 assert.strictEqual(result.validRut, true);
 assert.strictEqual(result.alerts, 0);
 assert.strictEqual(result.firstScheduleTime, '00:00');
 assert.strictEqual(result.lastScheduleTime, '23:00');
 assert.strictEqual(result.scheduleFieldCount, 7);
+assert.strictEqual(result.freeButtonCount, 7);
+assert.strictEqual(result.noCellHoursSummary, true);
+assert.strictEqual(result.noFreeOptionInTimeList, true);
 assert.strictEqual(result.closingWithoutNextDay, '01:00');
 assert.strictEqual(result.endOptionsWithoutNextDay, true);
 assert.ok(result.incompleteLastDayMessage.includes('completar exactamente 20 horas'));
 assert.deepStrictEqual(Array.from(result.migratedRoles), ['Crew', 'Crew-Master']);
 
-const availabilityRules = vm.runInContext(`(() => {
-  const weekendOnly20 = { ...state.employees[0], id: 11, availability: { Lunes:'X', Martes:'X', Miércoles:'X', Jueves:'X', Viernes:'X', Sábado:'09:00 - 01:00', Domingo:'09:00 - 23:00' } };
-  const lowFirstShift = { ...state.employees[0], id: 12 };
-  state.schedule[12] = emptyDays();
+const informationalAvailability = vm.runInContext(`(() => {
+  const employee = { ...state.employees[0], id: 11, availability: Object.fromEntries(days.map(day => [day, 'X'])) };
+  state.employees.push(employee);
+  state.schedule[11] = emptyDays();
+  const independentShift = assignmentValidationMessage(employee, 'Lunes', '00:00 - 06:00');
+  state.schedule[11].Lunes = '00:00 - 06:00';
+  enforceClosingLimits();
   return {
-    weekendError: contractAvailabilityMessage(weekendOnly20),
-    lowFirstShiftError: assignmentValidationMessage(lowFirstShift, 'Lunes', '09:00 - 11:00'),
-    validFirstShift: assignmentValidationMessage(lowFirstShift, 'Lunes', '09:00 - 15:00')
+    independentShift,
+    preservedWithNoAvailability: state.schedule[11].Lunes,
+    earlyStartOption: shiftOptions(employee, 'Lunes').some(option => option.value === '00:00 - 06:00')
   };
 })()`, context);
-assert.ok(availabilityRules.weekendError.includes('requiere disponibilidad en 4 días'));
-assert.ok(availabilityRules.lowFirstShiftError.includes('días restantes permiten 15'));
-assert.strictEqual(availabilityRules.validFirstShift, '');
+assert.strictEqual(informationalAvailability.independentShift, '');
+assert.strictEqual(informationalAvailability.preservedWithNoAvailability, '00:00 - 06:00');
+assert.strictEqual(informationalAvailability.earlyStartOption, true);
 
 const exactPatterns = vm.runInContext(`(() => {
   const employee30 = { ...state.employees[0], id: 20, hours: 30, availability: complete() };
@@ -109,15 +116,13 @@ const exactPatterns = vm.runInContext(`(() => {
     exact30,
     sixthDayError,
     exact16: followsWorkPattern(employee16),
-    mondayOptions16: shiftOptions(employee16, 'Lunes').length,
-    availability16: contractAvailabilityMessage(employee16)
+    mondayOptions16: shiftOptions(employee16, 'Lunes').length
   };
 })()`, context);
 assert.strictEqual(exactPatterns.exact30, true);
 assert.ok(exactPatterns.sixthDayError.includes('exactamente 5 días'));
 assert.strictEqual(exactPatterns.exact16, true);
 assert.strictEqual(exactPatterns.mondayOptions16, 1);
-assert.strictEqual(exactPatterns.availability16, '');
 
 const wrongDayCountAlert = vm.runInContext(`(() => {
   const employee = { ...state.employees[0], id: 30, availability: { ...complete() } };
@@ -132,9 +137,19 @@ assert.ok(wrongDayCountAlert.includes('20/20 h en 2/4 días (4x3)'));
 const saturdayOptions = vm.runInContext(`
   shiftOptions({ ...state.employees[0], overnight: true, availability: complete() }, 'Sábado').filter(option => option.hours === 10).map(option => option.value);
 `, context);
-assert.strictEqual(saturdayOptions.length, 11);
-assert.strictEqual(saturdayOptions[0], '09:00 - 20:00');
+assert.strictEqual(saturdayOptions.length, 29);
+assert.strictEqual(saturdayOptions[0], '00:00 - 11:00');
 assert.strictEqual(saturdayOptions.at(-1), '14:00 - 01:00');
+
+const freeDayResult = vm.runInContext(`
+  state.employees = [{ ...state.employees[0], id: 10 }];
+  state.schedule = { 10: emptyDays() };
+  ['Lunes','Martes','Miércoles','Jueves'].forEach(day => { state.schedule[10][day] = '09:00 - 15:00'; });
+  setFreeDay({ currentTarget: { dataset: { id: '10', day: 'Lunes' } } });
+  ({ value: state.schedule[10].Lunes, assigned: assignedHours(10) });
+`, context);
+assert.strictEqual(freeDayResult.value, 'LIBRE');
+assert.strictEqual(freeDayResult.assigned, 15);
 
 const historyHours = vm.runInContext(`
   state.employees = [{ ...state.employees[0], id: 10 }];
@@ -149,4 +164,4 @@ const historyHours = vm.runInContext(`
 `, context);
 assert.strictEqual(historyHours, 20);
 
-console.log(JSON.stringify({ result, availabilityRules, exactPatterns, wrongDayCountAlert }, null, 2));
+console.log(JSON.stringify({ result, informationalAvailability, exactPatterns, wrongDayCountAlert, freeDayResult }, null, 2));
