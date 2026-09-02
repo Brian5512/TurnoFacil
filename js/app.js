@@ -303,10 +303,6 @@ function assignedHours(employeeId) {
   return days.reduce((sum, day) => sum + shiftHours(state.schedule[employeeId]?.[day]), 0);
 }
 
-function matchesContractHours(employee) {
-  return Math.abs(assignedHours(employee.id) - Number(employee.hours || 0)) < 0.01;
-}
-
 function isValidRut(value) {
   const clean = String(value || '').replace(/[^0-9kK]/g, '').toUpperCase();
   if (!/^\d{7,8}[0-9K]$/.test(clean)) return false;
@@ -320,30 +316,6 @@ function isValidRut(value) {
   const result = 11 - (sum % 11);
   const verifier = result === 11 ? '0' : result === 10 ? 'K' : String(result);
   return verifier === clean.slice(-1);
-}
-
-function buildAlerts() {
-  const alerts = [];
-  state.employees.forEach((employee) => {
-    if (!isValidRut(employee.rut)) alerts.push({ type: 'data', text: `${employee.name}: RUT pendiente o inválido.` });
-    if (state.view !== 'availability' && state.schedule[employee.id] && !matchesContractHours(employee)) {
-      const assigned = assignedHours(employee.id);
-      alerts.push({ type: 'warning', text: `${employee.name}: asignadas ${formatNumber(assigned)}/${formatNumber(employee.hours)} h.` });
-    }
-  });
-  return alerts;
-}
-
-function renderMetrics() {
-  const totalContracted = state.employees.reduce((sum, employee) => sum + Number(employee.hours || 0), 0);
-  const totalAssigned = state.employees.reduce((sum, employee) => sum + assignedHours(employee.id), 0);
-  const alerts = buildAlerts();
-  const metrics = [
-    ['Equipo', state.employees.length, 'trabajadores activos'],
-    ['Horas programadas', totalAssigned, `de ${totalContracted} contratadas`],
-    ['Estado semanal', alerts.length, alerts.length ? 'revisiones pendientes' : 'sin revisiones'],
-  ];
-  $('#metrics').innerHTML = metrics.map(([label, value, note]) => `<div class="metric"><div class="metric-label">${label}</div><div class="metric-value">${typeof value === 'number' ? formatNumber(value) : value}</div><div class="metric-note">${note}</div></div>`).join('');
 }
 
 function renderTable() {
@@ -654,22 +626,6 @@ function changeWeek(week) {
   render();
 }
 
-function copyPreviousWeek() {
-  persistCurrentWeek();
-  const previous = addDaysToDate(state.week, -7);
-  const saved = state.history?.[previous];
-  if (!saved?.schedule || !Object.keys(saved.schedule).length) {
-    toast('La semana anterior todavía no tiene un horario guardado.');
-    return;
-  }
-  state.schedule = clone(saved.schedule);
-  enforceClosingLimits();
-  state.view = 'schedule';
-  save();
-  render();
-  toast('Horario de la semana anterior copiado.');
-}
-
 function downloadBlob(content, type, filename) {
   const blob = new Blob([content], { type });
   const link = document.createElement('a');
@@ -829,7 +785,6 @@ function render() {
     tab.classList.toggle('active', active);
     tab.setAttribute('aria-selected', String(active));
   });
-  renderMetrics();
   renderTable();
 }
 
@@ -837,7 +792,6 @@ $('#previous-week').addEventListener('click', () => changeWeek(addDaysToDate(sta
 $('#next-week').addEventListener('click', () => changeWeek(addDaysToDate(state.week, 7)));
 $('#current-week').addEventListener('click', () => changeWeek(getMonday()));
 $('#week').addEventListener('change', (event) => changeWeek(event.target.value));
-$('#copy-previous').addEventListener('click', copyPreviousWeek);
 $('#open-add').addEventListener('click', openEmployeeDialog);
 $('#close-add').addEventListener('click', () => $('#employee-dialog').close());
 $('#cancel-add').addEventListener('click', () => $('#employee-dialog').close());

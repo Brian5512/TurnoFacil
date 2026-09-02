@@ -23,7 +23,7 @@ No requiere instalación ni conexión a Internet. Los datos se guardan automáti
 - Registrar el cargo como **Crew** o **Crew-Master** y validar el dígito verificador del RUT al agregarlo.
 - Editar manualmente cada turno con dos listas, **Desde** y **Hasta**, que muestran horas cada 30 minutos entre 00:00 y 23:00.
 - Marcar un día sin turno mediante su botón **Libre** y sumar automáticamente las horas de todos los turnos en la columna **Asignadas**.
-- Abrir automáticamente la semana vigente según la fecha del sistema, navegar entre semanas, conservar el historial y copiar la semana anterior.
+- Abrir automáticamente la semana vigente según la fecha del sistema, navegar entre semanas y conservar el historial.
 - Respetar los cierres operacionales: 23:00 de lunes a jueves y domingo; 01:00 del día siguiente viernes y sábado.
 - Usar las horas contratadas como referencia para sugerir la duración inicial del turno, permitiendo trabajar cualquier día y distribuir la semana libremente.
 - Agregar una hora de colación no trabajada a todos los turnos y ofrecer alternativas de inicio cada 30 minutos.

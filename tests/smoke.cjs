@@ -3,6 +3,7 @@ const vm = require('vm');
 const assert = require('assert');
 
 const appSource = fs.readFileSync('js/app.js', 'utf8');
+const indexSource = fs.readFileSync('index.html', 'utf8');
 const source = appSource.slice(0, appSource.indexOf("$('#previous-week')"));
 const context = vm.createContext({
   console,
@@ -51,9 +52,7 @@ vm.runInContext(`
 
 const result = vm.runInContext(`({
   assigned: assignedHours(10),
-  exactHours: matchesContractHours(state.employees[0]),
   validRut: isValidRut('12.345.678-5'),
-  alerts: buildAlerts().length,
   firstScheduleTime: scheduleTimeValues[0],
   lastScheduleTime: scheduleTimeValues.at(-1),
   scheduleFieldCount: (rowHtml(state.employees[0]).match(/data-action="shift-start"/g) || []).length,
@@ -68,9 +67,7 @@ const result = vm.runInContext(`({
 })`, context);
 
 assert.strictEqual(result.assigned, 20);
-assert.strictEqual(result.exactHours, true);
 assert.strictEqual(result.validRut, true);
-assert.strictEqual(result.alerts, 0);
 assert.strictEqual(result.firstScheduleTime, '00:00');
 assert.strictEqual(result.lastScheduleTime, '23:00');
 assert.strictEqual(result.scheduleFieldCount, 7);
@@ -112,13 +109,18 @@ const overContract = vm.runInContext(`(() => {
 assert.strictEqual(overContract.assigned, 23);
 assert.strictEqual(overContract.highlighted, true);
 assert.strictEqual(appSource.includes('El turno supera las'), false);
+assert.strictEqual(appSource.includes('renderMetrics'), false);
+assert.strictEqual(appSource.includes('copyPreviousWeek'), false);
+assert.strictEqual(indexSource.includes('id="metrics"'), false);
+assert.strictEqual(indexSource.includes('id="copy-previous"'), false);
+assert.strictEqual(indexSource.includes('Organiza los turnos de tu equipo para esta semana.'), true);
 
 const flexibleDays = vm.runInContext(`(() => {
   const employee30 = { ...state.employees[0], id: 20, hours: 30, availability: complete() };
   state.employees.push(employee30);
   state.schedule[20] = emptyDays();
   ['Lunes','Martes','Miércoles','Jueves','Viernes'].forEach(day => { state.schedule[20][day] = '09:00 - 16:00'; });
-  const exact30 = matchesContractHours(employee30);
+  const exact30 = assignedHours(employee30.id) === 30;
   ['Lunes','Martes','Miércoles','Jueves','Viernes'].forEach(day => { state.schedule[20][day] = '09:00 - 11:00'; });
   const sixthDayMessage = assignmentValidationMessage(employee30, 'Sábado', '09:00 - 11:00');
 
@@ -134,7 +136,7 @@ const flexibleDays = vm.runInContext(`(() => {
   return {
     exact30,
     sixthDayMessage,
-    exact16: matchesContractHours(employee16),
+    exact16: assignedHours(employee16.id) === 16,
     mondayShiftMessage16: assignmentValidationMessage(employee16, 'Lunes', '09:00 - 18:00'),
     mondayOptions16: shiftOptions(employee16, 'Lunes').length,
     availabilityFields16
@@ -146,16 +148,6 @@ assert.strictEqual(flexibleDays.exact16, true);
 assert.strictEqual(flexibleDays.mondayShiftMessage16, '');
 assert.ok(flexibleDays.mondayOptions16 > 1);
 assert.strictEqual(flexibleDays.availabilityFields16, 7);
-
-const flexibleDayDistributionAlerts = vm.runInContext(`(() => {
-  const employee = { ...state.employees[0], id: 30, availability: { ...complete() } };
-  state.employees = [employee];
-  state.schedule = { 30: emptyDays() };
-  state.schedule[30].Sábado = '09:00 - 20:00';
-  state.schedule[30].Domingo = '09:00 - 20:00';
-  return buildAlerts().length;
-})()`, context);
-assert.strictEqual(flexibleDayDistributionAlerts, 0);
 
 const saturdayOptions = vm.runInContext(`
   shiftOptions({ ...state.employees[0], overnight: true, availability: complete() }, 'Sábado').filter(option => option.hours === 10).map(option => option.value);
@@ -187,4 +179,4 @@ const historyHours = vm.runInContext(`
 `, context);
 assert.strictEqual(historyHours, 20);
 
-console.log(JSON.stringify({ result, informationalAvailability, flexibleDays, flexibleDayDistributionAlerts, freeDayResult }, null, 2));
+console.log(JSON.stringify({ result, informationalAvailability, flexibleDays, freeDayResult }, null, 2));

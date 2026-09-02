@@ -10,7 +10,7 @@
     <meta property="og:image" content="https://brian5512.github.io/TurnoFacil/assets/og.png" />
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://brian5512.github.io/TurnoFacil/" />
-    <link rel="stylesheet" href="css/styles.css?v=16" />
+    <link rel="stylesheet" href="css/styles.css?v=17" />
   </head>
   <body>
     <header class="topbar">
@@ -23,7 +23,7 @@
     <main class="workspace">
       <section class="command-center">
         <div class="intro">
-          <div class="intro-copy"><h1 id="week-title">Horario semanal</h1><p>Define disponibilidades y asigna cada turno manualmente.</p></div>
+          <div class="intro-copy"><h1 id="week-title">Horario semanal</h1><p>Organiza los turnos de tu equipo para esta semana.</p></div>
           <div class="actions">
           <div class="week-navigation" aria-label="Navegación semanal">
             <button id="previous-week" class="icon-button previous" type="button" aria-label="Semana anterior"><span class="sr-only">Semana anterior</span></button>
@@ -33,9 +33,8 @@
           </div>
           </div>
         </div>
-        <section id="metrics" class="metrics" aria-label="Resumen de la semana"></section>
         <div class="utility-bar" aria-label="Herramientas del horario">
-          <div class="utility-group"><span class="utility-label">Semana</span><button id="copy-previous" class="text-button">Copiar anterior</button><button id="individual-report" class="text-button">Vista individual</button></div>
+          <div class="utility-group"><button id="individual-report" class="text-button">Vista individual</button></div>
           <div class="utility-group"><span class="utility-label">Archivos</span><button id="export-backup" class="text-button">Respaldar</button><button id="import-backup" class="text-button">Importar</button><input id="backup-file" type="file" accept="application/json,.json" hidden /><button id="export" class="text-button">Excel</button><button id="print" class="text-button">PDF e imprimir</button></div>
         </div>
       </section>
@@ -78,6 +77,6 @@
       </form>
     </dialog>
     <div id="toast" role="status"></div>
-    <script src="js/app.js?v=14"></script>
+    <script src="js/app.js?v=15"></script>
   </body>
 </html>
