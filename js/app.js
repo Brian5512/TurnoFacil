@@ -761,19 +761,6 @@ function savePdf() {
   setTimeout(() => window.print(), 200);
 }
 
-function employeeHistoryStats(employeeId) {
-  const weeks = Object.values(state.history || {});
-  return weeks.reduce((stats, week) => {
-    days.forEach((day) => {
-      const value = week.schedule?.[employeeId]?.[day];
-      const window = parseWindow(value);
-      stats.hours += shiftHours(value);
-      if (window && window.end === closingMinutes(day, week.businessHours)) stats.closings += 1;
-    });
-    return stats;
-  }, { hours: 0, closings: 0, weeks: weeks.length });
-}
-
 function renderIndividualReport() {
   const id = Number($('#individual-employee').value);
   const employee = state.employees.find((item) => item.id === id);
@@ -782,12 +769,11 @@ function renderIndividualReport() {
     return;
   }
   persistCurrentWeek();
-  const stats = employeeHistoryStats(employee.id);
   const rows = days.map((day, index) => {
     const shift = state.schedule?.[employee.id]?.[day] || 'LIBRE';
     return `<tr><td><strong>${day}</strong><br><small>${dayDateLabel(index)}</small></td><td>${shift === 'LIBRE' ? 'Libre' : escapeHtml(shiftDescription(shift))}</td><td>${formatNumber(shiftHours(shift))} h</td></tr>`;
   }).join('');
-  $('#individual-report-content').innerHTML = `<div class="individual-summary"><div><span>Cargo</span><strong>${escapeHtml(normalizeEmployeeRole(employee.role))}</strong></div><div><span>Contrato</span><strong>${formatNumber(employee.hours)} h</strong></div><div><span>Esta semana</span><strong>${formatNumber(assignedHours(employee.id))} h</strong></div><div><span>Historial</span><strong>${formatNumber(stats.hours)} h | ${stats.closings} cierres</strong></div></div><table class="individual-schedule"><thead><tr><th>Día</th><th>Turno</th><th>Trabajo</th></tr></thead><tbody>${rows}</tbody></table>`;
+  $('#individual-report-content').innerHTML = `<div class="individual-summary"><div><span>Cargo</span><strong>${escapeHtml(normalizeEmployeeRole(employee.role))}</strong></div><div><span>Contrato</span><strong>${formatNumber(employee.hours)} h</strong></div><div><span>Esta semana</span><strong>${formatNumber(assignedHours(employee.id))} h</strong></div></div><table class="individual-schedule"><thead><tr><th>Día</th><th>Turno</th><th>Trabajo</th></tr></thead><tbody>${rows}</tbody></table>`;
 }
 
 function openIndividualReport() {
@@ -808,7 +794,7 @@ function printIndividualReport() {
     toast('El navegador bloqueó la ventana de impresión.');
     return;
   }
-  popup.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Horario de ${escapeHtml(employee.name)}</title><style>body{font-family:Aptos,"Segoe UI",sans-serif;padding:28px;color:#172019}h1{margin-bottom:4px}p{color:#68736b}.individual-summary{display:grid;grid-template-columns:repeat(4,1fr);border:1px solid #ddd}.individual-summary div{padding:10px}.individual-summary span{display:block;font-size:9px;text-transform:uppercase;color:#68736b}.individual-summary strong{display:block;margin-top:4px}table{width:100%;border-collapse:collapse;margin-top:16px}th{background:#195c3b;color:white}th,td{border:1px solid #ccc;padding:8px;text-align:left}</style></head><body><h1>${escapeHtml(employee.name)}</h1><p>${escapeHtml(employee.rut)} | ${escapeHtml(normalizeEmployeeRole(employee.role))} | Semana ${escapeHtml(weekLabel())}</p>${$('#individual-report-content').innerHTML}</body></html>`);
+  popup.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Horario de ${escapeHtml(employee.name)}</title><style>body{font-family:Aptos,"Segoe UI",sans-serif;padding:28px;color:#172019}h1{margin-bottom:4px}p{color:#68736b}.individual-summary{display:grid;grid-template-columns:repeat(3,1fr);border:1px solid #ddd}.individual-summary div{padding:10px}.individual-summary span{display:block;font-size:9px;text-transform:uppercase;color:#68736b}.individual-summary strong{display:block;margin-top:4px}table{width:100%;border-collapse:collapse;margin-top:16px}th{background:#195c3b;color:white}th,td{border:1px solid #ccc;padding:8px;text-align:left}</style></head><body><h1>${escapeHtml(employee.name)}</h1><p>${escapeHtml(employee.rut)} | ${escapeHtml(normalizeEmployeeRole(employee.role))} | Semana ${escapeHtml(weekLabel())}</p>${$('#individual-report-content').innerHTML}</body></html>`);
   popup.document.close();
   popup.focus();
   setTimeout(() => popup.print(), 250);

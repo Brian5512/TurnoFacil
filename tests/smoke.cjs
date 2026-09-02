@@ -118,6 +118,9 @@ assert.strictEqual(indexSource.includes('Organiza los turnos de tu equipo para e
 assert.strictEqual(indexSource.includes('id="open-business-hours"'), true);
 assert.strictEqual(indexSource.includes('id="business-hours-dialog"'), true);
 assert.strictEqual(cssSource.includes('th.day.today'), false);
+assert.strictEqual(appSource.includes('<span>Historial</span>'), false);
+assert.strictEqual(appSource.includes('employeeHistoryStats'), false);
+assert.strictEqual(indexSource.toLowerCase().includes('historial'), false);
 
 const flexibleDays = vm.runInContext(`(() => {
   const employee30 = { ...state.employees[0], id: 20, hours: 30, availability: complete() };

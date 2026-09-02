@@ -34,7 +34,7 @@ No requiere instalación ni conexión a Internet. Los datos se guardan automáti
 - Copiar y pegar turnos respetando el cierre de cada día.
 - Comparar horas asignadas con horas contratadas: el total se muestra en rojo cuando supera el contrato, sin impedir continuar editando.
 - Descargar el horario para Excel y guardarlo como PDF mediante la impresión del navegador.
-- Abrir una vista individual con turno diario, horas históricas y cantidad de cierres por trabajador.
+- Abrir una vista individual con cargo, contrato, horas de la semana y turno diario por trabajador.
 - Crear e importar respaldos completos en formato JSON.
 
 ## Privacidad

@@ -240,7 +240,7 @@ tbody tr:nth-child(even) td.person { background: #eef4ee; }
 .business-hours-note { margin: 11px 2px 0; color: var(--muted); font-size: 10px; }
 .report-worker-field { max-width: 360px; margin-bottom: 15px; }
 .individual-report-content { overflow: hidden; border: 1px solid var(--line); border-radius: var(--radius-md); }
-.individual-summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: var(--line); }
+.individual-summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--line); }
 .individual-summary div { padding: 11px; background: var(--paper-muted); }
 .individual-summary span { display: block; color: var(--muted); font-size: 9px; font-weight: 750; text-transform: uppercase; }
 .individual-summary strong { display: block; margin-top: 4px; color: var(--forest-strong); font-size: 14px; }
@@ -327,7 +327,7 @@ tbody tr:nth-child(even) td.person { background: #eef4ee; }
   .check-field { grid-column: auto; }
   .availability-row { grid-template-columns: 1fr; }
   .time-fields { flex-wrap: wrap; }
-  .individual-summary { grid-template-columns: 1fr 1fr; }
+  .individual-summary { grid-template-columns: 1fr; }
   .business-hours-row { grid-template-columns: 74px minmax(0,1fr) minmax(0,1fr); gap: 7px; padding: 8px; }
   .business-hours-row select { height: 42px; padding-inline: 6px; font-size: 16px; }
 }
