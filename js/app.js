@@ -125,6 +125,7 @@ function formatTime(minutes) {
 }
 
 const timeValues = Array.from({ length: 48 }, (_, index) => formatTime(index * 30));
+const scheduleTimeValues = timeValues.filter((time) => parseTime(time) <= 23 * 60);
 
 function closingMinutes(day) {
   return day === 'Viernes' || day === 'Sábado' ? 25 * 60 : 23 * 60;
@@ -135,7 +136,7 @@ function closingTime(day) {
 }
 
 function closingDisplay(day) {
-  return closingMinutes(day) > 1440 ? `${closingTime(day)} (+1 día)` : closingTime(day);
+  return closingTime(day);
 }
 
 function startTimeOptionsHtml(day, selected = '') {
@@ -159,8 +160,7 @@ function endTimeOptionsHtml(day, start, selected = '') {
     const value = formatTime(minutes);
     if (seen.has(value)) continue;
     seen.add(value);
-    const label = minutes >= 1440 ? `${value} (+1 día)` : value;
-    options.push(`<option value="${value}" ${value === selected ? 'selected' : ''}>${label}</option>`);
+    options.push(`<option value="${value}" ${value === selected ? 'selected' : ''}>${value}</option>`);
   }
   return options.length ? options.join('') : '<option value="">Sin horas disponibles</option>';
 }
@@ -171,6 +171,15 @@ function endWithinClosing(day, start, end) {
 
 function defaultEndForDay(day, start) {
   return formatTime(Math.min(parseTime(start) + 8 * 60, closingMinutes(day)));
+}
+
+function scheduleTimeOptionsHtml(selected = '', includeFree = false) {
+  const free = includeFree ? `<option value="LIBRE" ${selected === 'LIBRE' ? 'selected' : ''}>Libre</option>` : '';
+  const blank = !includeFree && !selected ? '<option value="" selected>—</option>' : '';
+  const current = selected && selected !== 'LIBRE' && !scheduleTimeValues.includes(selected)
+    ? `<option value="${selected}" selected>${selected}</option>`
+    : '';
+  return `${free}${blank}${current}${scheduleTimeValues.map((time) => `<option value="${time}" ${time === selected ? 'selected' : ''}>${time}</option>`).join('')}`;
 }
 
 function parseWindow(value) {
@@ -422,7 +431,8 @@ function renderTable() {
   table.querySelectorAll('[data-field]').forEach((input) => input.addEventListener('change', onCellChange));
   table.querySelectorAll('[data-action="availability-start"]').forEach((select) => select.addEventListener('change', onAvailabilityStartChange));
   table.querySelectorAll('[data-action="availability-end"]').forEach((select) => select.addEventListener('change', onAvailabilityEndChange));
-  table.querySelectorAll('[data-action="shift"]').forEach((select) => select.addEventListener('change', onShiftChange));
+  table.querySelectorAll('[data-action="shift-start"]').forEach((select) => select.addEventListener('change', onShiftStartChange));
+  table.querySelectorAll('[data-action="shift-end"]').forEach((select) => select.addEventListener('change', onShiftEndChange));
   table.querySelectorAll('[data-action="copy-shift"]').forEach((button) => button.addEventListener('click', copyShift));
   table.querySelectorAll('[data-action="paste-shift"]').forEach((button) => button.addEventListener('click', pasteShift));
   table.querySelectorAll('[data-action="toggle-mobile-worker"]').forEach((button) => button.addEventListener('click', toggleMobileWorker));
@@ -448,18 +458,14 @@ function rowHtml(employee, index) {
       return `<td class="day-cell" data-label="${day}"><div class="availability-controls"><label class="availability-line"><span>Desde</span><select class="availability-time-select ${startClass}" data-id="${employee.id}" data-day="${day}" data-action="availability-start" aria-label="Hora de inicio de ${escapeHtml(employee.name)} para ${day}"><option value="COMPLETA" ${availability.start === 'COMPLETA' ? 'selected' : ''}>Completa</option><option value="X" ${availability.start === 'X' ? 'selected' : ''}>No disponible</option><optgroup label="Horas">${startTimeOptionsHtml(day, availability.mode === 'range' ? availability.start : '')}</optgroup></select></label><label class="availability-line"><span>Hasta</span><select class="availability-time-select availability-end" data-id="${employee.id}" data-day="${day}" data-action="availability-end" aria-label="Hora de término de ${escapeHtml(employee.name)} para ${day}" ${availability.mode !== 'range' ? 'disabled' : ''}>${endTimeOptionsHtml(day, availability.mode === 'range' ? availability.start : '', availability.end)}</select></label></div></td>`;
     }
     const current = state.schedule[employee.id]?.[day] || 'LIBRE';
-    let options = shiftOptions(employee, day, [shiftHours(current)]);
-    if (current !== 'LIBRE' && !options.some((option) => option.value === current)) {
-      options.splice(1, 0, { value: current, hours: shiftHours(current), label: `${shiftDescription(current)} | guardado` });
-    }
-    options = options.filter((option) => option.value === 'LIBRE' || option.value === current || !contractAssignmentMessage(employee, day, option.value));
     const currentWindow = parseWindow(current);
-    const kind = currentWindow ? currentWindow.start === openingMinutes ? 'opening' : currentWindow.end === closingMinutes(day) ? 'closing' : 'middle' : 'free';
-    const details = currentWindow
-      ? `<div class="shift-details ${kind}"><div class="shift-details-head"><span>${kind === 'opening' ? 'Apertura' : kind === 'closing' ? 'Cierre' : 'Turno manual'}</span><strong>${formatNumber(shiftHours(current))} h trabajo</strong></div><div class="shift-times"><span><small>Inicio</small><b>${formatTime(currentWindow.start)}</b></span><i>a</i><span><small>Fin</small><b>${formatTime(currentWindow.end)}</b></span></div><div class="meal-note">Incluye 1 h de colación</div></div>`
-      : '<div class="shift-free">Sin turno asignado</div>';
+    const selectedStart = currentWindow ? formatTime(currentWindow.start) : 'LIBRE';
+    const selectedEnd = currentWindow ? formatTime(currentWindow.end) : '';
+    const summary = currentWindow
+      ? `<span class="shift-duration"><strong>${formatNumber(shiftHours(current))} h</strong> + 1 h colación</span>`
+      : '<span class="shift-duration empty">Sin turno</span>';
     const canPaste = Boolean(shiftClipboard && !assignmentValidationMessage(employee, day, shiftClipboard.value));
-    return `<td class="day-cell" data-label="${day}"><div class="shift-cell"><select class="shift-select ${current === 'LIBRE' ? 'off' : ''}" data-id="${employee.id}" data-day="${day}" data-action="shift" aria-label="Turno de ${escapeHtml(employee.name)} para ${day}">${options.map((option) => `<option value="${escapeHtml(option.value)}" ${option.value === current ? 'selected' : ''}>${escapeHtml(option.label)}</option>`).join('')}</select>${details}<div class="shift-tools"><button type="button" data-action="copy-shift" data-id="${employee.id}" data-day="${day}" ${current === 'LIBRE' ? 'disabled' : ''}>Copiar</button><button type="button" data-action="paste-shift" data-id="${employee.id}" data-day="${day}" ${canPaste ? '' : 'disabled'}>Pegar</button></div></div></td>`;
+    return `<td class="day-cell" data-label="${day}"><div class="shift-cell"><div class="shift-time-grid"><label class="shift-time-field"><span>Desde</span><select class="shift-time-select shift-start-select ${current === 'LIBRE' ? 'off' : ''}" data-id="${employee.id}" data-day="${day}" data-action="shift-start" aria-label="Hora de inicio de ${escapeHtml(employee.name)} para ${day}">${scheduleTimeOptionsHtml(selectedStart, true)}</select></label><label class="shift-time-field"><span>Hasta</span><select class="shift-time-select" data-id="${employee.id}" data-day="${day}" data-action="shift-end" aria-label="Hora de término de ${escapeHtml(employee.name)} para ${day}" ${currentWindow ? '' : 'disabled'}>${scheduleTimeOptionsHtml(selectedEnd)}</select></label></div>${summary}<div class="shift-tools"><button type="button" data-action="copy-shift" data-id="${employee.id}" data-day="${day}" ${current === 'LIBRE' ? 'disabled' : ''}>Copiar</button><button type="button" data-action="paste-shift" data-id="${employee.id}" data-day="${day}" ${canPaste ? '' : 'disabled'}>Pegar</button></div></div></td>`;
   }).join('');
   const hoursCell = state.view === 'schedule'
     ? `<div class="hours-summary ${hoursClass}"><strong>${formatNumber(assigned)}</strong><span>/ ${formatNumber(employee.hours)} h</span></div>`
@@ -641,19 +647,54 @@ function onAvailabilityEndChange(event) {
   render();
 }
 
-function onShiftChange(event) {
+function validShiftOptionsForStart(employee, day, start) {
+  return shiftOptions(employee, day)
+    .filter((option) => option.value !== 'LIBRE' && formatTime(parseWindow(option.value).start) === start)
+    .filter((option) => !contractAssignmentMessage(employee, day, option.value));
+}
+
+function onShiftStartChange(event) {
   const id = Number(event.target.dataset.id);
   const day = event.target.dataset.day;
   const employee = state.employees.find((item) => item.id === id);
   if (!employee) return;
-  const error = assignmentValidationMessage(employee, day, event.target.value);
+  if (event.target.value === 'LIBRE') {
+    state.schedule[id] ??= emptyDays();
+    state.schedule[id][day] = 'LIBRE';
+    save();
+    render();
+    return;
+  }
+  const candidates = validShiftOptionsForStart(employee, day, event.target.value);
+  if (!candidates.length) {
+    toast(`No hay un turno válido desde las ${event.target.value} para ${day}.`);
+    render();
+    return;
+  }
+  const currentHours = shiftHours(state.schedule?.[id]?.[day]);
+  const targetHours = currentHours || workPattern(employee)?.dailyHours || Math.min(8, Number(employee.hours || 8));
+  candidates.sort((a, b) => Math.abs(a.hours - targetHours) - Math.abs(b.hours - targetHours) || a.hours - b.hours);
+  state.schedule[id] ??= emptyDays();
+  state.schedule[id][day] = candidates[0].value;
+  save();
+  render();
+}
+
+function onShiftEndChange(event) {
+  const id = Number(event.target.dataset.id);
+  const day = event.target.dataset.day;
+  const employee = state.employees.find((item) => item.id === id);
+  const current = state.schedule?.[id]?.[day];
+  const currentWindow = parseWindow(current);
+  if (!employee || !currentWindow) return;
+  const value = `${formatTime(currentWindow.start)} - ${event.target.value}`;
+  const error = assignmentValidationMessage(employee, day, value);
   if (error) {
     toast(error);
     render();
     return;
   }
-  state.schedule[id] ??= emptyDays();
-  state.schedule[id][day] = event.target.value;
+  state.schedule[id][day] = value;
   save();
   render();
 }

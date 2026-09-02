@@ -55,6 +55,11 @@ const result = vm.runInContext(`({
   validAvailability: contractAvailabilityMessage(state.employees[0]),
   validRut: isValidRut('12.345.678-5'),
   alerts: buildAlerts().length,
+  firstScheduleTime: scheduleTimeValues[0],
+  lastScheduleTime: scheduleTimeValues.at(-1),
+  scheduleFieldCount: (rowHtml(state.employees[0]).match(/data-action="shift-start"/g) || []).length,
+  closingWithoutNextDay: closingDisplay('Viernes'),
+  endOptionsWithoutNextDay: !endTimeOptionsHtml('Viernes', '23:00', '01:00').includes('+1 día'),
   incompleteLastDayMessage: assignmentValidationMessage(state.employees[0], 'Jueves', '09:00 - 14:00'),
   migratedRoles: [normalizeEmployeeRole('General'), normalizeEmployeeRole('Crew-Master')]
 })`, context);
@@ -64,6 +69,11 @@ assert.strictEqual(result.exactPattern, true);
 assert.strictEqual(result.validAvailability, '');
 assert.strictEqual(result.validRut, true);
 assert.strictEqual(result.alerts, 0);
+assert.strictEqual(result.firstScheduleTime, '00:00');
+assert.strictEqual(result.lastScheduleTime, '23:00');
+assert.strictEqual(result.scheduleFieldCount, 7);
+assert.strictEqual(result.closingWithoutNextDay, '01:00');
+assert.strictEqual(result.endOptionsWithoutNextDay, true);
 assert.ok(result.incompleteLastDayMessage.includes('completar exactamente 20 horas'));
 assert.deepStrictEqual(Array.from(result.migratedRoles), ['Crew', 'Crew-Master']);
 
