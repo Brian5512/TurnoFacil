@@ -20,8 +20,9 @@ La persona encargada de organizar los turnos de un equipo en Chile. Trabaja prin
 
 - La interfaz y los mensajes están en español.
 - Los cargos disponibles son Crew y Crew-Master.
-- Los contratos de 30 horas siguen una referencia 5x2.
-- Los contratos de 20 horas siguen una referencia 4x3.
+- Los contratos de 30 horas deben completar exactamente 5 días de trabajo y 2 de descanso (5x2).
+- Los contratos de 20 horas deben completar exactamente 4 días de trabajo y 3 de descanso (4x3).
+- La disponibilidad se valida al crear al trabajador para asegurar que permita completar los días y horas pactados.
 - Los contratos de 16 horas trabajan solo fines de semana.
 - Cada turno suma una hora de colación a las horas efectivamente trabajadas.
 - Los turnos pueden comenzar desde las 09:00.

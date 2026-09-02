@@ -219,8 +219,8 @@ function workPattern(employee) {
 function patternSummary(employee) {
   const pattern = workPattern(employee);
   if (!pattern) return 'Distribución flexible';
-  if (pattern.weekendOnly) return 'Solo sábado y domingo | asignación manual';
-  return `${pattern.code} | máximo ${pattern.workDays} días manuales`;
+  if (pattern.weekendOnly) return '2 días exactos | sábado y domingo';
+  return `${pattern.code} | ${pattern.workDays} días exactos`;
 }
 
 function workWindow(employee, day) {
@@ -331,12 +331,36 @@ function weekLabel() {
 function availabilityCapacity(employee) {
   const pattern = workPattern(employee);
   if (pattern) {
-    return Math.min(Number(employee.hours || 0), selectPatternDays(employee, pattern).reduce((sum, candidate) => sum + candidate.capacity, 0));
+    return selectPatternDays(employee, pattern).reduce((sum, candidate) => sum + candidate.capacity, 0);
   }
   return days.filter((day) => shiftOptions(employee, day).length > 1).reduce((total, day) => {
     const max = Math.max(...shiftOptions(employee, day).map((option) => option.hours));
     return total + max;
   }, 0);
+}
+
+function contractAvailabilityMessage(employee) {
+  const contractedHours = Number(employee.hours || 0);
+  const pattern = workPattern(employee);
+  if (!pattern) {
+    const capacity = availabilityCapacity(employee);
+    return capacity + 0.01 < contractedHours
+      ? `La disponibilidad permite ${formatNumber(capacity)} de ${formatNumber(contractedHours)} horas contratadas.`
+      : '';
+  }
+
+  const candidates = patternDayCandidates(employee, pattern);
+  if (candidates.length < pattern.workDays) {
+    return `El contrato ${pattern.code} requiere disponibilidad en ${pattern.workDays} días; actualmente hay ${candidates.length}.`;
+  }
+  const capacity = [...candidates]
+    .sort((a, b) => b.capacity - a.capacity || a.index - b.index)
+    .slice(0, pattern.workDays)
+    .reduce((sum, candidate) => sum + candidate.capacity, 0);
+  if (capacity + 0.01 < contractedHours) {
+    return `La disponibilidad permite ${formatNumber(capacity)} de ${formatNumber(contractedHours)} horas dentro de los ${pattern.workDays} días del contrato ${pattern.code}.`;
+  }
+  return '';
 }
 
 function assignedHours(employeeId) {
@@ -348,7 +372,7 @@ function followsWorkPattern(employee) {
   if (!pattern) return Math.abs(assignedHours(employee.id) - Number(employee.hours || 0)) < 0.01;
   const usedDays = days.filter((day) => shiftHours(state.schedule[employee.id]?.[day]) > 0);
   return Math.abs(assignedHours(employee.id) - Number(employee.hours || 0)) < 0.01
-    && usedDays.length <= pattern.workDays
+    && usedDays.length === pattern.workDays
     && usedDays.every((day) => pattern.allowedDays.includes(day));
 }
 
@@ -371,11 +395,14 @@ function buildAlerts() {
   const alerts = [];
   state.employees.forEach((employee) => {
     if (!isValidRut(employee.rut)) alerts.push({ type: 'data', text: `${employee.name}: RUT pendiente o inválido.` });
-    const capacity = availabilityCapacity(employee);
-    if (capacity + 0.01 < Number(employee.hours || 0)) alerts.push({ type: 'warning', text: `${employee.name}: disponibilidad para ${formatNumber(capacity)} de ${formatNumber(employee.hours)} h.` });
+    const availabilityIssue = contractAvailabilityMessage(employee);
+    if (availabilityIssue) alerts.push({ type: 'warning', text: `${employee.name}: ${availabilityIssue}` });
     if (state.view !== 'availability' && state.schedule[employee.id] && !followsWorkPattern(employee)) {
-      const difference = Number(employee.hours || 0) - assignedHours(employee.id);
-      alerts.push({ type: 'warning', text: `${employee.name}: ${difference > 0 ? 'faltan' : 'sobran'} ${formatNumber(Math.abs(difference))} h por ajustar.` });
+      const pattern = workPattern(employee);
+      const assigned = assignedHours(employee.id);
+      const usedDays = days.filter((day) => shiftHours(state.schedule[employee.id]?.[day]) > 0);
+      const dayStatus = pattern ? ` en ${usedDays.length}/${pattern.workDays} días (${pattern.code})` : '';
+      alerts.push({ type: 'warning', text: `${employee.name}: asignadas ${formatNumber(assigned)}/${formatNumber(employee.hours)} h${dayStatus}.` });
     }
   });
   return alerts;
@@ -439,10 +466,11 @@ function rowHtml(employee, index) {
       return `<td class="day-cell" data-label="${day}"><div class="availability-controls"><label class="availability-line"><span>Desde</span><select class="availability-time-select ${startClass}" data-id="${employee.id}" data-day="${day}" data-action="availability-start" aria-label="Hora de inicio de ${escapeHtml(employee.name)} para ${day}"><option value="COMPLETA" ${availability.start === 'COMPLETA' ? 'selected' : ''}>Completa</option><option value="X" ${availability.start === 'X' ? 'selected' : ''}>No disponible</option><optgroup label="Horas">${startTimeOptionsHtml(day, availability.mode === 'range' ? availability.start : '')}</optgroup></select></label><label class="availability-line"><span>Hasta</span><select class="availability-time-select availability-end" data-id="${employee.id}" data-day="${day}" data-action="availability-end" aria-label="Hora de término de ${escapeHtml(employee.name)} para ${day}" ${availability.mode !== 'range' ? 'disabled' : ''}>${endTimeOptionsHtml(day, availability.mode === 'range' ? availability.start : '', availability.end)}</select></label></div></td>`;
     }
     const current = state.schedule[employee.id]?.[day] || 'LIBRE';
-    const options = shiftOptions(employee, day, [shiftHours(current)]);
+    let options = shiftOptions(employee, day, [shiftHours(current)]);
     if (current !== 'LIBRE' && !options.some((option) => option.value === current)) {
       options.splice(1, 0, { value: current, hours: shiftHours(current), label: `${shiftDescription(current)} | guardado` });
     }
+    options = options.filter((option) => option.value === 'LIBRE' || option.value === current || !contractAssignmentMessage(employee, day, option.value));
     const currentWindow = parseWindow(current);
     const kind = currentWindow ? currentWindow.start === openingMinutes ? 'opening' : currentWindow.end === closingMinutes(day) ? 'closing' : 'middle' : 'free';
     const details = currentWindow
@@ -488,8 +516,8 @@ function updateAvailabilityFormPattern() {
   const hours = Number($('#employee-hours').value || 0);
   const pattern = workPattern({ hours });
   const note = $('#availability-pattern-note');
-  if (pattern?.weekendOnly) note.textContent = '16 horas: asigna manualmente los turnos de sábado y domingo. Cada turno suma 1 hora de colación.';
-  else if (pattern) note.textContent = `${hours} horas: distribuye los turnos manualmente en un máximo de ${pattern.workDays} días de trabajo (${pattern.code}).`;
+  if (pattern?.weekendOnly) note.textContent = '16 horas: requiere disponibilidad y turnos en sábado y domingo. Cada turno suma 1 hora de colación.';
+  else if (pattern) note.textContent = `${hours} horas: requiere disponibilidad y turnos en exactamente ${pattern.workDays} días de trabajo (${pattern.code}).`;
   else note.textContent = 'Selecciona completa, no disponible o un rango horario.';
   $$('.availability-row').forEach((row) => {
     const locked = Boolean(pattern?.weekendOnly && !pattern.allowedDays.includes(row.dataset.formDay));
@@ -545,7 +573,7 @@ function addEmployeeFromForm(event) {
       availability[day] = `${start} - ${end}`;
     }
   }
-  state.employees.push({
+  const employee = {
     id: Date.now(),
     name: $('#employee-name').value.trim(),
     rut,
@@ -553,7 +581,13 @@ function addEmployeeFromForm(event) {
     hours: weeklyHours,
     overnight: $('#employee-overnight').checked,
     availability,
-  });
+  };
+  const availabilityIssue = contractAvailabilityMessage(employee);
+  if (availabilityIssue) {
+    toast(availabilityIssue);
+    return;
+  }
+  state.employees.push(employee);
   save();
   $('#employee-dialog').close();
   render();
@@ -573,7 +607,17 @@ function onCellChange(event) {
   const employee = state.employees.find((item) => item.id === Number(event.target.dataset.id));
   if (!employee) return;
   const field = event.target.dataset.field;
-  if (field === 'hours') employee.hours = Number(event.target.value);
+  if (field === 'hours') {
+    const previousHours = employee.hours;
+    employee.hours = Number(event.target.value);
+    const availabilityIssue = contractAvailabilityMessage(employee);
+    if (availabilityIssue) {
+      employee.hours = previousHours;
+      toast(availabilityIssue);
+      render();
+      return;
+    }
+  }
   else if (field === 'rut') employee.rut = formatRut(event.target.value);
   else employee[field] = field === 'role' ? normalizeEmployeeRole(event.target.value) : event.target.value.trim();
   save();
@@ -635,14 +679,39 @@ function onShiftChange(event) {
 function assignmentValidationMessage(employee, day, value) {
   if (!value || value === 'LIBRE') return '';
   if (!shiftOptions(employee, day, [shiftHours(value)]).some((option) => option.value === value)) return 'Ese turno no cabe en la disponibilidad seleccionada.';
+  return contractAssignmentMessage(employee, day, value);
+}
+
+function contractAssignmentMessage(employee, day, value) {
+  if (!value || value === 'LIBRE') return '';
   const current = state.schedule?.[employee.id]?.[day] || 'LIBRE';
-  const hoursWithoutDay = assignedHours(employee.id) - shiftHours(current);
-  if (hoursWithoutDay + shiftHours(value) > Number(employee.hours || 0) + 0.001) return `El turno supera las ${formatNumber(employee.hours)} horas contratadas.`;
+  const projectedHours = assignedHours(employee.id) - shiftHours(current) + shiftHours(value);
+  const contractedHours = Number(employee.hours || 0);
+  if (projectedHours > contractedHours + 0.001) return `El turno supera las ${formatNumber(employee.hours)} horas contratadas.`;
   const pattern = workPattern(employee);
-  if (pattern && current === 'LIBRE') {
-    const usedDays = days.filter((item) => item !== day && shiftHours(state.schedule?.[employee.id]?.[item]) > 0).length;
-    if (usedDays >= pattern.workDays) return `El contrato ${pattern.code} permite un máximo de ${pattern.workDays} días trabajados.`;
+  if (!pattern) return '';
+
+  const projectedUsedDays = days.filter((item) => shiftHours(item === day ? value : state.schedule?.[employee.id]?.[item]) > 0);
+  if (projectedUsedDays.some((item) => !pattern.allowedDays.includes(item))) return `El contrato ${pattern.code} no permite trabajar ese día.`;
+  if (projectedUsedDays.length > pattern.workDays) return `El contrato ${pattern.code} requiere exactamente ${pattern.workDays} días trabajados.`;
+
+  const remainingDays = pattern.workDays - projectedUsedDays.length;
+  const remainingHours = contractedHours - projectedHours;
+  if (remainingDays === 0) {
+    return Math.abs(remainingHours) > 0.001
+      ? `El último día del patrón ${pattern.code} debe completar exactamente ${formatNumber(contractedHours)} horas semanales.`
+      : '';
   }
+
+  const availableDays = pattern.allowedDays
+    .filter((item) => !projectedUsedDays.includes(item))
+    .map((item) => dayWorkCapacity(employee, item))
+    .filter((capacity) => capacity > 0)
+    .sort((a, b) => b - a);
+  if (availableDays.length < remainingDays) return `Faltan días disponibles para completar el patrón ${pattern.code}.`;
+  if (remainingHours + 0.001 < remainingDays) return `Este turno no deja al menos 1 hora de trabajo para cada día restante del patrón ${pattern.code}.`;
+  const remainingCapacity = availableDays.slice(0, remainingDays).reduce((sum, capacity) => sum + capacity, 0);
+  if (remainingHours > remainingCapacity + 0.001) return `Este turno deja ${formatNumber(remainingHours)} horas pendientes, pero los ${remainingDays} días restantes permiten ${formatNumber(remainingCapacity)}.`;
   return '';
 }
 
