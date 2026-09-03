@@ -116,10 +116,11 @@ assert.strictEqual(indexSource.includes('id="metrics"'), false);
 assert.strictEqual(indexSource.includes('id="copy-previous"'), false);
 assert.strictEqual(indexSource.includes('Planificación semanal'), true);
 assert.strictEqual(indexSource.includes('Guardar horario'), true);
-assert.strictEqual(appSource.includes('Horario de trabajo Crew'), true);
+assert.strictEqual(appSource.includes('Horario crew'), true);
 assert.strictEqual(appSource.includes('Tienda: ${storeName}'), true);
 assert.strictEqual(appSource.includes('class="free" colspan="2"'), true);
 assert.strictEqual(appSource.includes('class="signature"'), true);
+assert.strictEqual(appSource.includes('<th class="time-label">DESDE'), false);
 assert.strictEqual(indexSource.includes('id="open-business-hours"'), true);
 assert.strictEqual(indexSource.includes('id="business-hours-dialog"'), true);
 assert.strictEqual(cssSource.includes('th.day.today'), false);
@@ -136,7 +137,9 @@ const excelExport = vm.runInContext(`(() => {
     filename: exported.filename,
     type: exported.type,
     hasStore: exported.content.includes('Tienda: Plaza Bio Bio'),
-    hasTitle: exported.content.includes('Horario de trabajo Crew'),
+    hasTitle: exported.content.includes('Horario crew'),
+    hasLogo: exported.content.includes('data:image/png;base64,'),
+    hasNoTimeLabelRow: !exported.content.includes('>DESDE<') && !exported.content.includes('>HASTA<'),
     hasWeekdays: exported.content.includes('LUNES') && exported.content.includes('DOMINGO'),
     hasSignature: exported.content.includes('FIRMA'),
     hasBlackFreeCells: exported.content.includes('class="free" colspan="2"') && exported.content.includes('.roster .free{background:#000}')
@@ -147,6 +150,8 @@ assert.ok(excelExport.filename.endsWith('.xls'));
 assert.strictEqual(excelExport.type, 'application/vnd.ms-excel;charset=utf-8');
 assert.strictEqual(excelExport.hasStore, true);
 assert.strictEqual(excelExport.hasTitle, true);
+assert.strictEqual(excelExport.hasLogo, true);
+assert.strictEqual(excelExport.hasNoTimeLabelRow, true);
 assert.strictEqual(excelExport.hasWeekdays, true);
 assert.strictEqual(excelExport.hasSignature, true);
 assert.strictEqual(excelExport.hasBlackFreeCells, true);
