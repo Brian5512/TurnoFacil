@@ -114,10 +114,20 @@ assert.strictEqual(appSource.includes('renderMetrics'), false);
 assert.strictEqual(appSource.includes('copyPreviousWeek'), false);
 assert.strictEqual(indexSource.includes('id="metrics"'), false);
 assert.strictEqual(indexSource.includes('id="copy-previous"'), false);
-assert.strictEqual(indexSource.includes('Planificación semanal'), true);
+assert.strictEqual(indexSource.includes('id="current-store-name"'), true);
 assert.strictEqual(indexSource.includes('Guardar horario'), true);
+assert.strictEqual(indexSource.includes('id="open-week-navigation"'), true);
+assert.strictEqual(indexSource.includes('id="open-workers"'), true);
+assert.strictEqual(indexSource.includes('id="open-store-settings"'), true);
+assert.strictEqual(indexSource.includes('id="store-settings-dialog"'), true);
+assert.strictEqual(indexSource.includes('id="sidebar-reveal"'), true);
+assert.strictEqual(indexSource.includes('PDF e imprimir'), false);
+assert.strictEqual(indexSource.includes('id="print"'), false);
 assert.strictEqual(appSource.includes('Horario crew'), true);
-assert.strictEqual(appSource.includes('Tienda: ${storeName}'), true);
+assert.strictEqual(appSource.includes('Tienda: ${escapeHtml(storeName)}'), true);
+assert.strictEqual(appSource.includes("storeName: 'Plaza Bio Bio'"), true);
+assert.strictEqual(appSource.includes("$('#print').addEventListener"), false);
+assert.strictEqual(cssSource.includes('body.sidebar-open .sidebar'), true);
 assert.strictEqual(appSource.includes('<th rowspan="2" class="number">N°</th>'), true);
 assert.strictEqual(appSource.includes('colspan="2" class="logo-cell"'), true);
 assert.strictEqual(appSource.includes('colspan="3" class="title-cell"'), true);
@@ -177,6 +187,19 @@ assert.strictEqual(excelExport.hasSingleCellShift, true);
 assert.strictEqual(excelExport.hasWeekdays, true);
 assert.strictEqual(excelExport.hasSignature, true);
 assert.strictEqual(excelExport.hasBlackFreeCells, true);
+
+const renamedStoreExport = vm.runInContext(`(() => {
+  let exported = {};
+  state.storeName = 'Mall Plaza Norte';
+  downloadBlob = (content, type, filename) => { exported = { content, type, filename }; };
+  exportExcel();
+  return {
+    filename: exported.filename,
+    hasStore: exported.content.includes('Tienda: Mall Plaza Norte')
+  };
+})()`, context);
+assert.ok(renamedStoreExport.filename.startsWith('horario-mall-plaza-norte-'));
+assert.strictEqual(renamedStoreExport.hasStore, true);
 
 const flexibleDays = vm.runInContext(`(() => {
   const employee30 = { ...state.employees[0], id: 20, hours: 30, availability: complete() };

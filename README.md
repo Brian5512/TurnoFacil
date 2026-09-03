@@ -24,6 +24,7 @@ No requiere instalación ni conexión a Internet. Los datos se guardan automáti
 - Editar manualmente cada turno con dos listas, **Desde** y **Hasta**, que muestran alternativas cada 30 minutos dentro del horario configurado para el día.
 - Marcar un día sin turno mediante su botón **Libre** y sumar automáticamente las horas de todos los turnos en la columna **Asignadas**.
 - Abrir automáticamente la semana vigente según la fecha del sistema, navegar entre semanas y conservar el historial.
+- Cambiar el nombre de la tienda desde la sección **Tienda**; el valor queda guardado y se incluye en el Excel exportado.
 - Editar la apertura y el cierre de cada día para la semana seleccionada; por defecto son 09:00–23:00, con cierre a la 01:00 viernes y sábado.
 - Usar las horas contratadas como referencia para sugerir la duración inicial del turno, permitiendo trabajar cualquier día y distribuir la semana libremente.
 - Agregar una hora de colación no trabajada a todos los turnos y ofrecer alternativas de inicio cada 30 minutos.
@@ -36,7 +37,9 @@ No requiere instalación ni conexión a Internet. Los datos se guardan automáti
 - Usar **Guardar horario** para descargar una planilla `.xls` compacta y lista para imprimir: numeración, nombre y RUT separados, título “Horario crew” entre G:I, anchos controlados para N°, Horas y TR, turnos diarios centrados, días libres en negro y firma entre L:M.
 - Abrir una vista individual con cargo, contrato, horas de la semana y turno diario por trabajador.
 - Crear e importar respaldos completos en formato JSON.
-- Navegar desde una barra lateral por semana, disponibilidades, horarios, trabajadores, vista individual, apertura/cierre y archivos.
+- Abrir el selector de semana y ubicar rápidamente la tabla de trabajadores desde sus accesos laterales.
+- Aprovechar todo el ancho del horario: en escritorio la barra lateral se oculta y reaparece al acercar el puntero al borde izquierdo.
+- Navegar desde una barra lateral por semana, disponibilidades, horarios, trabajadores, vista individual, apertura/cierre, tienda y archivos.
 
 ## Privacidad
 
