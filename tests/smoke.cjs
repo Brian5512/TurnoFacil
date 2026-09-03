@@ -119,6 +119,7 @@ assert.strictEqual(indexSource.includes('Guardar horario'), true);
 assert.strictEqual(appSource.includes('Horario crew'), true);
 assert.strictEqual(appSource.includes('Tienda: ${storeName}'), true);
 assert.strictEqual(appSource.includes('<th rowspan="2" class="number">N°</th>'), true);
+assert.strictEqual(appSource.includes('colspan="2" class="logo-cell"'), true);
 assert.strictEqual(appSource.includes('colspan="3" class="title-cell"'), true);
 assert.strictEqual(appSource.includes('rowspan="2" colspan="2" class="signature"'), true);
 assert.strictEqual(appSource.includes('class="free" colspan="2"'), false);
@@ -145,7 +146,9 @@ const excelExport = vm.runInContext(`(() => {
     hasNoTimeLabelRow: !exported.content.includes('>DESDE<') && !exported.content.includes('>HASTA<'),
     hasWorkerNumber: exported.content.includes('<th rowspan="2" class="number">N°</th>') && exported.content.includes('<td class="number">1</td>'),
     hasRut: exported.content.includes('12.345.678-5'),
-    hasTitleAtEtoG: exported.content.includes('<td colspan="3" class="title-cell">'),
+    hasSeparatedNameAndRut: exported.content.includes('<br><span class="rut-line">RUT: 12.345.678-5</span>'),
+    hasReferenceHeaderLayout: exported.content.includes('<td colspan="2" class="logo-cell">') && exported.content.includes('<td colspan="3" class="title-cell">Horario crew</td>') && exported.content.includes('<td colspan="2" class="meta-spacer"></td>'),
+    hasReferenceColumnWidths: exported.content.includes('.roster .col-hours{width:51px}') && exported.content.includes('.roster .col-closing{width:42px}') && exported.content.includes('.roster .col-time-wide{width:89px}'),
     hasSignatureLtoM: exported.content.includes('rowspan="2" colspan="2" class="signature"') && exported.content.includes('<td colspan="2" class="signature"></td>'),
     hasSingleCellShift: exported.content.includes('09:00 - 15:00'),
     hasWeekdays: exported.content.includes('LUNES') && exported.content.includes('DOMINGO'),
@@ -162,7 +165,9 @@ assert.strictEqual(excelExport.hasLogo, true);
 assert.strictEqual(excelExport.hasNoTimeLabelRow, true);
 assert.strictEqual(excelExport.hasWorkerNumber, true);
 assert.strictEqual(excelExport.hasRut, true);
-assert.strictEqual(excelExport.hasTitleAtEtoG, true);
+assert.strictEqual(excelExport.hasSeparatedNameAndRut, true);
+assert.strictEqual(excelExport.hasReferenceHeaderLayout, true);
+assert.strictEqual(excelExport.hasReferenceColumnWidths, true);
 assert.strictEqual(excelExport.hasSignatureLtoM, true);
 assert.strictEqual(excelExport.hasSingleCellShift, true);
 assert.strictEqual(excelExport.hasWeekdays, true);

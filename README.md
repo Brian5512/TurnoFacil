@@ -33,7 +33,7 @@ No requiere instalación ni conexión a Internet. Los datos se guardan automáti
 - Elegir manualmente entre opciones de turno válidas para cada día.
 - Copiar y pegar turnos respetando el cierre de cada día.
 - Comparar horas asignadas con horas contratadas: el total se muestra en rojo cuando supera el contrato, sin impedir continuar editando.
-- Usar **Guardar horario** para descargar una planilla `.xls` lista para abrir e imprimir en Excel, con numeración, nombre y RUT, logo y título “Horario crew” centrados en E:G, turnos `09:00 - 16:00`, días libres en negro y firma extendida entre L:M.
+- Usar **Guardar horario** para descargar una planilla `.xls` lista para abrir e imprimir en Excel, replicando la plantilla ajustada: numeración, nombre y RUT separados en dos líneas, cabecera compacta con logo, título “Horario crew”, turnos `09:00 - 16:00`, días libres en negro y firma extendida entre L:M.
 - Abrir una vista individual con cargo, contrato, horas de la semana y turno diario por trabajador.
 - Crear e importar respaldos completos en formato JSON.
 - Navegar desde una barra lateral por semana, disponibilidades, horarios, trabajadores, vista individual, apertura/cierre y archivos.

@@ -34,7 +34,7 @@ La persona encargada de organizar los turnos de un equipo en Chile. Trabaja prin
 - Todos los encabezados de día comparten el mismo tratamiento visual.
 - La navegación principal vive en una barra lateral de escritorio; Horarios es la sección operativa principal.
 - La identidad visual usa la paleta cálida de Burger King sin alterar reglas, datos ni compatibilidad local.
-- Guardar horario genera una planilla `.xls` imprimible del local Plaza Bio Bio, con trabajadores numerados, nombre y RUT, logo y título “Horario crew” en E:G, turnos unidos por un guion, días libres en negro y firma extendida de L:M.
+- Guardar horario genera una planilla `.xls` imprimible del local Plaza Bio Bio que replica la plantilla ajustada por el usuario: anchos compactos, trabajadores numerados, nombre y RUT separados visualmente, cabecera con logo y título “Horario crew”, turnos unidos por un guion, días libres en negro y firma extendida de L:M.
 
 ## Restricciones de implementación
 
