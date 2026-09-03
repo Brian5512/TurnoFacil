@@ -10,17 +10,16 @@
     <meta property="og:image" content="https://brian5512.github.io/TurnoFacil/assets/og.png" />
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://brian5512.github.io/TurnoFacil/" />
-    <link rel="stylesheet" href="css/styles.css?v=21" />
+    <link rel="stylesheet" href="css/styles.css?v=20" />
   </head>
   <body>
     <!--
-      THESIS: Una planilla de turnos Burger King convertida en herramienta operativa, sin perder la claridad del documento que el equipo reconoce.
-      OWN-WORLD: Barra lateral chocolate, acción naranja, papel blanco, cabeceras burdeos y una grilla de horarios precisa.
-      STORY: La tienda identifica el documento, el administrador navega la semana y guarda, luego completa inicio y fin por trabajador.
-      FIRST VIEWPORT: Tienda y título centrado arriba; fecha y Guardar horario a la derecha; siete días completos visibles debajo.
-      FORM: Aplicación local con navegación lateral y una mesa semanal inspirada en la planilla física del local. SEED-KEY: turnofacil-bk-roster-v1.
-      QUALITY BAR: Sin scroll horizontal en escritorio ni móvil; acciones de archivo siempre accesibles; contraste AA para las acciones principales; semana editable y guardable sin perder reglas existentes.
-      FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, DESIGN.md, and every shipping raster carrying its provenance
+      THESIS: Una herramienta operativa Burger King, rápida y reconocible, donde el horario es el protagonista.
+      OWN-WORLD: Barra lateral color chocolate, naranja de acción, crema cálido y controles compactos inspirados en el universo visual de la marca.
+      STORY: Identidad y navegación a la izquierda; semana y estado arriba; planificación completa en el lienzo principal.
+      FIRST VIEWPORT: La semana, los siete días, las horas asignadas y las acciones esenciales deben verse sin desplazamiento horizontal en escritorio.
+      FORM: Aplicación de escritorio local con navegación lateral permanente y tabla operativa de alta densidad.
+      FINISH: Rediseño aprobado por el usuario; validación visual pendiente durante esta implementación.
     -->
     <div class="app-shell">
       <aside class="sidebar" aria-label="Navegación de TurnoFácil">
@@ -70,33 +69,17 @@
 
       <div class="app-main">
         <header class="topbar">
-          <label class="store-identity" for="store-name">
-            <span>Tienda</span>
-            <input id="store-name" type="text" value="Plaza Bio Bio" maxlength="60" autocomplete="off" aria-label="Nombre de la tienda" />
-          </label>
-
-          <div class="roster-heading">
-            <img src="assets/burger-king-logo.svg?v=2" alt="" aria-hidden="true" />
-            <div>
-              <h1>Horario de trabajo <em>Crew</em></h1>
-              <p id="week-title">Semana actual</p>
-            </div>
-            <img src="assets/burger-king-logo.svg?v=2" alt="" aria-hidden="true" />
+          <div class="week-heading">
+            <span class="eyebrow">Planificación semanal</span>
+            <h1 id="week-title">Horario semanal</h1>
           </div>
-
-          <div class="topbar-tools">
-            <div class="week-navigation" aria-label="Navegación semanal">
-              <button id="previous-week" class="icon-button previous" type="button" aria-label="Semana anterior"><span class="sr-only">Semana anterior</span></button>
-              <input id="week" type="date" aria-label="Semana seleccionada" />
-              <button id="next-week" class="icon-button next" type="button" aria-label="Semana siguiente"><span class="sr-only">Semana siguiente</span></button>
-              <button id="current-week" class="button secondary compact" type="button">Hoy</button>
-            </div>
-            <button id="save-schedule" class="button save-schedule" type="button">
-              <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2Z"/><path d="M17 21v-8H7v8M7 3v5h8"/></svg>
-              <span>Guardar horario</span>
-            </button>
-            <div class="save-indicator"><span class="save-check" aria-hidden="true">✓</span><span id="save-state" class="save-state">Guardado automático</span></div>
+          <div class="week-navigation" aria-label="Navegación semanal">
+            <button id="previous-week" class="icon-button previous" type="button" aria-label="Semana anterior"><span class="sr-only">Semana anterior</span></button>
+            <input id="week" type="date" aria-label="Semana seleccionada" />
+            <button id="next-week" class="icon-button next" type="button" aria-label="Semana siguiente"><span class="sr-only">Semana siguiente</span></button>
+            <button id="current-week" class="button secondary compact" type="button">Hoy</button>
           </div>
+          <div class="save-indicator"><span class="save-check" aria-hidden="true">✓</span><span id="save-state" class="save-state">Guardado automático</span></div>
         </header>
 
         <main class="workspace">
@@ -148,6 +131,6 @@
       </form>
     </dialog>
     <div id="toast" role="status"></div>
-    <script src="js/app.js?v=18"></script>
+    <script src="js/app.js?v=17"></script>
   </body>
 </html>
