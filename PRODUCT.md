@@ -10,11 +10,11 @@ La persona encargada de organizar los turnos de un equipo en Chile. Trabaja prin
 
 ## Flujo principal
 
-1. Registrar trabajadores con nombre, RUT, cargo, horas semanales y permiso de cierre.
+1. Identificar la tienda, elegir la semana y registrar trabajadores con nombre, RUT, cargo, horas semanales y permiso de cierre.
 2. Definir disponibilidad por día mediante una jornada completa, un rango de inicio y fin o no disponibilidad.
 3. Configurar la apertura y el cierre de cada día y asignar los turnos manualmente, usando la disponibilidad solo como referencia.
 4. Comparar las horas asignadas con las pactadas y ajustar la semana sin bloqueos automáticos.
-5. Respaldar datos y exportar el resultado a Excel o PDF.
+5. Confirmar la semana con **Guardar horario**, respaldar los datos y exportar el resultado a Excel o PDF.
 
 ## Reglas confirmadas
 
@@ -30,10 +30,16 @@ La persona encargada de organizar los turnos de un equipo en Chile. Trabaja prin
 - Los turnos manuales pueden diferir de la disponibilidad indicada por decisión del administrador.
 - Las horas asignadas pueden superar las horas contratadas; el total se muestra en rojo sin bloquear la edición.
 - El estado se conserva localmente en el navegador.
+- El nombre de la tienda es editable, parte con “Plaza Bio Bio” y se conserva con los demás datos locales.
+- **Guardar horario** confirma explícitamente la semana actual sin depender solamente del autoguardado.
 - La semana completa debe verse sin desplazamiento horizontal en computador.
 - Todos los encabezados de día comparten el mismo tratamiento visual.
 - La navegación principal vive en una barra lateral de escritorio; Horarios es la sección operativa principal.
 - La identidad visual usa la paleta cálida de Burger King sin alterar reglas, datos ni compatibilidad local.
+- La planilla usa fechas y días en burdeos, turnos libres oscuros y turnos asignados claros para acercarse al formato operativo de referencia.
+- La exportación a Excel separa cada día en columnas Desde/Hasta e incluye una columna de firma.
+- En móvil, cada trabajador se consulta como una ficha desplegable y la navegación conserva todas sus opciones sin desplazamiento horizontal.
+- El respaldo JSON es la vía para trasladar o recuperar tienda, trabajadores, disponibilidad, horarios por semana, apertura/cierre e historial en otro navegador.
 
 ## Restricciones de implementación
 

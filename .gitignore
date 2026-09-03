@@ -8,4 +8,7 @@
 /.wrangler/
 /dist/
 /work/
+/assets/plates/
+/.impeccable/build/
+/.impeccable/mocks/
 /next-env.d.ts

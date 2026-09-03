@@ -1,7 +1,8 @@
 const days = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
 const storageKey = 'turnofacil-html-v1';
-const appVersion = 5;
+const appVersion = 6;
 const mealBreakHours = 1;
+const defaultStoreName = 'Plaza Bio Bio';
 const complete = () => Object.fromEntries(days.map((day) => [day, 'COMPLETA']));
 const emptyDays = () => Object.fromEntries(days.map((day) => [day, 'LIBRE']));
 const defaultBusinessHours = () => Object.fromEntries(days.map((day) => [day, {
@@ -13,9 +14,10 @@ const seed = [
   { id: 2, name: 'Trabajador 2', rut: '', role: 'Crew', hours: 20, overnight: false, availability: complete() },
 ];
 
-let state = { version: appVersion, employees: seed, week: getMonday(), view: 'availability', schedule: {}, businessHours: defaultBusinessHours(), history: {} };
+let state = { version: appVersion, storeName: defaultStoreName, employees: seed, week: getMonday(), view: 'availability', schedule: {}, businessHours: defaultBusinessHours(), history: {} };
 let shiftClipboard = null;
 let saveTimer;
+let manualSaveTimer;
 const mobileExpandedEmployees = new Set();
 let mobileExpansionInitialized = false;
 
@@ -58,6 +60,12 @@ function dayDateLabel(index) {
   return `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}`;
 }
 
+function dayDateHeaderLabel(index) {
+  const months = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sept', 'oct', 'nov', 'dic'];
+  const date = dateForDay(index);
+  return `${String(date.getDate()).padStart(2, '0')}-${months[date.getMonth()]}`;
+}
+
 function normalizeEmployeeRole(value) {
   return String(value || '').trim().toLocaleLowerCase('es') === 'crew-master' ? 'Crew-Master' : 'Crew';
 }
@@ -80,6 +88,7 @@ function load() {
         ...state,
         ...saved,
         version: appVersion,
+        storeName: String(saved.storeName || defaultStoreName).trim() || defaultStoreName,
         employees: saved.employees.map((employee, index) => ({ ...employee, id: Number(employee.id) || Date.now() + index, role: normalizeEmployeeRole(employee.role), availability: { ...complete(), ...(employee.availability || {}) } })),
         businessHours: normalizeBusinessHours(saved.businessHours),
         history: saved.history && typeof saved.history === 'object' ? saved.history : {},
@@ -131,6 +140,22 @@ function save() {
     indicator.textContent = 'Guardado automático';
     indicator.classList.remove('saved');
   }, 1300);
+}
+
+function saveScheduleManually() {
+  state.storeName = $('#store-name').value.trim() || defaultStoreName;
+  $('#store-name').value = state.storeName;
+  save();
+  const button = $('#save-schedule');
+  const label = button.querySelector('span');
+  button.classList.add('confirmed');
+  label.textContent = 'Horario guardado';
+  clearTimeout(manualSaveTimer);
+  manualSaveTimer = setTimeout(() => {
+    button.classList.remove('confirmed');
+    label.textContent = 'Guardar horario';
+  }, 1600);
+  toast(`Horario de ${state.storeName} guardado.`);
 }
 
 function parseTime(value) {
@@ -336,7 +361,7 @@ function renderTable() {
   const table = $('#schedule-table');
   table.className = '';
   const body = state.employees.length ? state.employees.map(rowHtml).join('') : '<tr><td colspan="11" class="empty-row">No hay trabajadores. Usa “Agregar trabajador” para comenzar.</td></tr>';
-  table.innerHTML = `<thead><tr><th>Trabajador y cargo</th><th class="hours">${state.view === 'schedule' ? 'Asignadas' : 'Horas'}</th>${days.map((day, index) => `<th class="day"><span>${day}</span><small><span class="day-date">${dayDateLabel(index)}</span><button type="button" class="day-window-button" data-action="business-hours" data-day="${day}" aria-label="Editar apertura y cierre de ${day}">${businessHoursDisplay(day)}</button></small></th>`).join('')}<th class="overnight">Cierre hasta 01:00</th><th class="remove"></th></tr></thead><tbody>${body}</tbody>`;
+  table.innerHTML = `<thead><tr><th>Nombre y cargo</th><th class="hours">${state.view === 'schedule' ? 'Asignadas' : 'Horas'}</th>${days.map((day, index) => `<th class="day"><span class="day-date">${dayDateHeaderLabel(index)}</span><span class="day-name">${day}</span><button type="button" class="day-window-button" data-action="business-hours" data-day="${day}" aria-label="Editar apertura y cierre de ${day}">${businessHoursDisplay(day)}</button></th>`).join('')}<th class="overnight">Cierre<br>01:00</th><th class="remove"></th></tr></thead><tbody>${body}</tbody>`;
   table.querySelectorAll('[data-action="business-hours"]').forEach((button) => button.addEventListener('click', openBusinessHoursDialog));
   table.querySelectorAll('[data-field]').forEach((input) => input.addEventListener('change', onCellChange));
   table.querySelectorAll('[data-action="availability-start"]').forEach((select) => select.addEventListener('change', onAvailabilityStartChange));
@@ -366,14 +391,14 @@ function rowHtml(employee, index) {
     if (state.view === 'availability') {
       const availability = availabilityParts(employee.availability[day]);
       const startClass = availability.mode === 'unavailable' ? 'unavailable' : '';
-      return `<td class="day-cell" data-label="${day}"><div class="availability-controls"><label class="availability-line"><span>Desde</span><select class="availability-time-select ${startClass}" data-id="${employee.id}" data-day="${day}" data-action="availability-start" aria-label="Hora de inicio de ${escapeHtml(employee.name)} para ${day}"><option value="COMPLETA" ${availability.start === 'COMPLETA' ? 'selected' : ''}>Completa</option><option value="X" ${availability.start === 'X' ? 'selected' : ''}>No disponible</option><optgroup label="Horas">${startTimeOptionsHtml(day, availability.mode === 'range' ? availability.start : '')}</optgroup></select></label><label class="availability-line"><span>Hasta</span><select class="availability-time-select availability-end" data-id="${employee.id}" data-day="${day}" data-action="availability-end" aria-label="Hora de término de ${escapeHtml(employee.name)} para ${day}" ${availability.mode !== 'range' ? 'disabled' : ''}>${endTimeOptionsHtml(day, availability.mode === 'range' ? availability.start : '', availability.end)}</select></label></div></td>`;
+      return `<td class="day-cell ${availability.mode === 'unavailable' ? 'is-unavailable' : ''}" data-label="${day}"><div class="availability-controls"><label class="availability-line"><span>Desde</span><select class="availability-time-select ${startClass}" data-id="${employee.id}" data-day="${day}" data-action="availability-start" aria-label="Hora de inicio de ${escapeHtml(employee.name)} para ${day}"><option value="COMPLETA" ${availability.start === 'COMPLETA' ? 'selected' : ''}>Completa</option><option value="X" ${availability.start === 'X' ? 'selected' : ''}>No disponible</option><optgroup label="Horas">${startTimeOptionsHtml(day, availability.mode === 'range' ? availability.start : '')}</optgroup></select></label><label class="availability-line"><span>Hasta</span><select class="availability-time-select availability-end" data-id="${employee.id}" data-day="${day}" data-action="availability-end" aria-label="Hora de término de ${escapeHtml(employee.name)} para ${day}" ${availability.mode !== 'range' ? 'disabled' : ''}>${endTimeOptionsHtml(day, availability.mode === 'range' ? availability.start : '', availability.end)}</select></label></div></td>`;
     }
     const current = state.schedule[employee.id]?.[day] || 'LIBRE';
     const currentWindow = parseWindow(current);
     const selectedStart = currentWindow ? formatTime(currentWindow.start) : '';
     const selectedEnd = currentWindow ? formatTime(currentWindow.end) : '';
     const canPaste = Boolean(shiftClipboard && !assignmentValidationMessage(employee, day, shiftClipboard.value));
-    return `<td class="day-cell" data-label="${day}"><div class="shift-cell"><div class="shift-time-grid"><label class="shift-time-field"><span>Desde</span><select class="shift-time-select shift-start-select ${current === 'LIBRE' ? 'off' : ''}" data-id="${employee.id}" data-day="${day}" data-action="shift-start" aria-label="Hora de inicio de ${escapeHtml(employee.name)} para ${day}">${scheduleTimeOptionsHtml(selectedStart)}</select></label><label class="shift-time-field"><span>Hasta</span><select class="shift-time-select" data-id="${employee.id}" data-day="${day}" data-action="shift-end" aria-label="Hora de término de ${escapeHtml(employee.name)} para ${day}" ${currentWindow ? '' : 'disabled'}>${scheduleTimeOptionsHtml(selectedEnd)}</select></label></div><div class="shift-actions"><button type="button" class="shift-free-button ${current === 'LIBRE' ? 'active' : ''}" data-action="free-day" data-id="${employee.id}" data-day="${day}" aria-pressed="${current === 'LIBRE'}">Libre</button><div class="shift-tools"><button type="button" data-action="copy-shift" data-id="${employee.id}" data-day="${day}" ${current === 'LIBRE' ? 'disabled' : ''}>Copiar</button><button type="button" data-action="paste-shift" data-id="${employee.id}" data-day="${day}" ${canPaste ? '' : 'disabled'}>Pegar</button></div></div></div></td>`;
+    return `<td class="day-cell ${current === 'LIBRE' ? 'is-free' : 'has-shift'}" data-label="${day}"><div class="shift-cell"><div class="shift-time-grid"><label class="shift-time-field"><span>Desde</span><select class="shift-time-select shift-start-select ${current === 'LIBRE' ? 'off' : ''}" data-id="${employee.id}" data-day="${day}" data-action="shift-start" aria-label="Hora de inicio de ${escapeHtml(employee.name)} para ${day}">${scheduleTimeOptionsHtml(selectedStart)}</select></label><label class="shift-time-field"><span>Hasta</span><select class="shift-time-select" data-id="${employee.id}" data-day="${day}" data-action="shift-end" aria-label="Hora de término de ${escapeHtml(employee.name)} para ${day}" ${currentWindow ? '' : 'disabled'}>${scheduleTimeOptionsHtml(selectedEnd)}</select></label></div><div class="shift-actions"><button type="button" class="shift-free-button ${current === 'LIBRE' ? 'active' : ''}" data-action="free-day" data-id="${employee.id}" data-day="${day}" aria-pressed="${current === 'LIBRE'}">Libre</button><div class="shift-tools"><button type="button" data-action="copy-shift" data-id="${employee.id}" data-day="${day}" ${current === 'LIBRE' ? 'disabled' : ''}>Copiar</button><button type="button" data-action="paste-shift" data-id="${employee.id}" data-day="${day}" ${canPaste ? '' : 'disabled'}>Pegar</button></div></div></div></td>`;
   }).join('');
   const hoursCell = state.view === 'schedule'
     ? `<div class="hours-summary ${hoursClass}"><strong>${formatNumber(assigned)}</strong><span>/ ${formatNumber(employee.hours)} h</span></div>`
@@ -697,10 +722,21 @@ function downloadBlob(content, type, filename) {
 }
 
 function exportExcel() {
-  const headers = ['Trabajador', 'RUT', 'Cargo', 'Horas contratadas', ...days, 'Horas asignadas'];
-  const rows = state.employees.map((employee) => [employee.name, employee.rut, normalizeEmployeeRole(employee.role), employee.hours, ...days.map((day) => state.schedule[employee.id]?.[day] || 'LIBRE'), assignedHours(employee.id)]);
-  const table = `<table><tr>${headers.map((cell) => `<th>${escapeHtml(cell)}</th>`).join('')}</tr>${rows.map((row) => `<tr>${row.map((cell) => `<td>${escapeHtml(cell)}</td>`).join('')}</tr>`).join('')}</table>`;
-  const html = `<!doctype html><html><head><meta charset="utf-8"><style>table{border-collapse:collapse;font-family:Aptos,"Segoe UI",sans-serif}th{background:#195c3b;color:#fff}th,td{border:1px solid #bbb;padding:6px}td{mso-number-format:"\\@"}</style></head><body><h2>TurnoFácil | ${escapeHtml(weekLabel())}</h2>${table}</body></html>`;
+  const dayGroups = days.map((day, index) => `<th colspan="2" class="date">${dayDateHeaderLabel(index)}</th>`).join('');
+  const dayNames = days.map((day) => `<th colspan="2">${day.toUpperCase()}</th>`).join('');
+  const timeNames = days.map(() => '<th class="time-label">DESDE</th><th class="time-label">HASTA</th>').join('');
+  const rows = state.employees.map((employee, index) => {
+    const shifts = days.map((day) => {
+      const shift = state.schedule[employee.id]?.[day] || 'LIBRE';
+      const window = parseWindow(shift);
+      return window
+        ? `<td>${formatTime(window.start)}</td><td>${formatTime(window.end)}</td>`
+        : '<td class="free" colspan="2">LIBRE</td>';
+    }).join('');
+    return `<tr><td class="index">${index + 1}</td><td class="person">${escapeHtml(employee.name)}${employee.rut ? ` (${escapeHtml(employee.rut)})` : ''}<small>${escapeHtml(normalizeEmployeeRole(employee.role))}</small></td><td class="hours">${formatNumber(employee.hours)}</td><td class="closing">${employee.overnight ? 'SÍ' : 'NO'}</td>${shifts}<td class="signature"></td></tr>`;
+  }).join('');
+  const table = `<table><thead><tr><th rowspan="3" class="index"></th><th rowspan="3" class="person">NOMBRE</th><th rowspan="3">HORAS</th><th rowspan="3">TR</th>${dayGroups}<th rowspan="3" class="signature">FIRMA</th></tr><tr>${dayNames}</tr><tr>${timeNames}</tr></thead><tbody>${rows}</tbody></table>`;
+  const html = `<!doctype html><html><head><meta charset="utf-8"><style>body{font-family:Aptos,"Segoe UI",sans-serif;color:#111;padding:24px}.document-head{display:grid;grid-template-columns:1fr 2fr 1fr;align-items:center;margin-bottom:20px}.store{font-size:16px;font-weight:700}.brand{text-align:center}.brand strong{display:block;color:#d72d22;font-size:21px}.brand h1{margin:4px 0 0;font-size:19px;font-style:italic;text-decoration:underline}.week{text-align:right;font-weight:700}table{width:100%;border-collapse:collapse;font-size:10px}th,td{border:1px solid #111;padding:4px;text-align:center;mso-number-format:"\\@"}th{background:#632b2e;color:#fff;font-weight:800}.date{background:#7b3638}.time-label{font-size:8px}.person{min-width:220px;text-align:left;font-weight:700}.person small{display:block;color:#666;font-weight:400}.hours{background:#dff4d7;color:#17702f}.closing{background:#ffd8d8;color:#b31524}.free{background:#111;color:#fff}.signature{min-width:120px;background:#fff;color:#111}.index{width:24px;background:#fff;color:#111}</style></head><body><div class="document-head"><div class="store">Tienda: ${escapeHtml(state.storeName || defaultStoreName)}</div><div class="brand"><strong>BURGER KING</strong><h1>Horario de trabajo Crew</h1></div><div class="week">${escapeHtml(weekLabel())}</div></div>${table}</body></html>`;
   downloadBlob(`\ufeff${html}`, 'application/vnd.ms-excel;charset=utf-8', `horario-${state.week}.xls`);
   toast('Archivo para Excel descargado.');
 }
@@ -821,6 +857,7 @@ function render() {
     mobileExpansionInitialized = true;
   }
   $('#week').value = state.week;
+  $('#store-name').value = state.storeName || defaultStoreName;
   $('#week-title').textContent = `Semana del ${weekLabel()}`;
   $('#row-count').textContent = `${state.employees.length} trabajadores`;
   $('#view-hint').innerHTML = state.view === 'availability'
@@ -838,6 +875,12 @@ $('#previous-week').addEventListener('click', () => changeWeek(addDaysToDate(sta
 $('#next-week').addEventListener('click', () => changeWeek(addDaysToDate(state.week, 7)));
 $('#current-week').addEventListener('click', () => changeWeek(getMonday()));
 $('#week').addEventListener('change', (event) => changeWeek(event.target.value));
+$('#store-name').addEventListener('change', (event) => {
+  state.storeName = event.target.value.trim() || defaultStoreName;
+  event.target.value = state.storeName;
+  save();
+});
+$('#save-schedule').addEventListener('click', saveScheduleManually);
 $('#open-add').addEventListener('click', openEmployeeDialog);
 $('#open-business-hours').addEventListener('click', openBusinessHoursDialog);
 $('#close-business-hours').addEventListener('click', () => $('#business-hours-dialog').close());
