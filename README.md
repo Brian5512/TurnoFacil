@@ -1,6 +1,6 @@
 # TurnoFácil
 
-Planificador semanal de horarios que funciona íntegramente en el navegador.
+Planificador semanal de horarios para equipos Burger King que funciona íntegramente en el navegador, con navegación lateral y asignación manual de la semana completa.
 
 ## Uso local
 
@@ -36,6 +36,7 @@ No requiere instalación ni conexión a Internet. Los datos se guardan automáti
 - Descargar el horario para Excel y guardarlo como PDF mediante la impresión del navegador.
 - Abrir una vista individual con cargo, contrato, horas de la semana y turno diario por trabajador.
 - Crear e importar respaldos completos en formato JSON.
+- Navegar desde una barra lateral por semana, disponibilidades, horarios, trabajadores, vista individual, apertura/cierre y archivos.
 
 ## Privacidad
 

@@ -2,7 +2,7 @@
 
 ## Producto
 
-TurnoFácil es un planificador semanal local para construir horarios de trabajo manuales y consultar por separado la disponibilidad de cada integrante. Debe funcionar como una herramienta operativa rápida, comprensible y confiable, tanto abierta directamente desde el computador como publicada en GitHub Pages.
+TurnoFácil es un planificador semanal local para equipos Burger King que permite construir horarios manuales y consultar por separado la disponibilidad de cada integrante. Debe funcionar como una herramienta operativa rápida, reconocible y confiable, tanto abierta directamente desde el computador como publicada en GitHub Pages.
 
 ## Usuario principal
 
@@ -13,8 +13,8 @@ La persona encargada de organizar los turnos de un equipo en Chile. Trabaja prin
 1. Registrar trabajadores con nombre, RUT, cargo, horas semanales y permiso de cierre.
 2. Definir disponibilidad por día mediante una jornada completa, un rango de inicio y fin o no disponibilidad.
 3. Configurar la apertura y el cierre de cada día y asignar los turnos manualmente, usando la disponibilidad solo como referencia.
-4. Revisar las alertas de horas pendientes y ajustar la semana.
-5. Guardar historial, respaldar datos y exportar el resultado a Excel o PDF.
+4. Comparar las horas asignadas con las pactadas y ajustar la semana sin bloqueos automáticos.
+5. Respaldar datos y exportar el resultado a Excel o PDF.
 
 ## Reglas confirmadas
 
@@ -32,6 +32,8 @@ La persona encargada de organizar los turnos de un equipo en Chile. Trabaja prin
 - El estado se conserva localmente en el navegador.
 - La semana completa debe verse sin desplazamiento horizontal en computador.
 - Todos los encabezados de día comparten el mismo tratamiento visual.
+- La navegación principal vive en una barra lateral de escritorio; Horarios es la sección operativa principal.
+- La identidad visual usa la paleta cálida de Burger King sin alterar reglas, datos ni compatibilidad local.
 
 ## Restricciones de implementación
 
@@ -39,3 +41,4 @@ La persona encargada de organizar los turnos de un equipo en Chile. Trabaja prin
 - Preservar los datos existentes y la compatibilidad de localStorage.
 - Mantener la publicación en GitHub Pages y una copia descargable para uso local.
 - La tabla semanal es la superficie principal; el diseño debe priorizar rapidez, legibilidad y control sobre decoración.
+- El logotipo, la paleta y el nombre Burger King se usan como identidad contextual del local; no deben convertirse en elementos interactivos.

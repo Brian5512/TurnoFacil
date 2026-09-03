@@ -114,7 +114,7 @@ assert.strictEqual(appSource.includes('renderMetrics'), false);
 assert.strictEqual(appSource.includes('copyPreviousWeek'), false);
 assert.strictEqual(indexSource.includes('id="metrics"'), false);
 assert.strictEqual(indexSource.includes('id="copy-previous"'), false);
-assert.strictEqual(indexSource.includes('Organiza los turnos de tu equipo para esta semana.'), true);
+assert.strictEqual(indexSource.includes('Planificación semanal'), true);
 assert.strictEqual(indexSource.includes('id="open-business-hours"'), true);
 assert.strictEqual(indexSource.includes('id="business-hours-dialog"'), true);
 assert.strictEqual(cssSource.includes('th.day.today'), false);
