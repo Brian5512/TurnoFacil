@@ -1,45 +1,38 @@
 # TurnoFácil
 
-Planificador semanal de horarios para equipos Burger King que funciona íntegramente en el navegador, con navegación lateral y asignación manual de la semana completa.
+Aplicación para crear y guardar los horarios semanales del personal de Burger King.
 
-## Uso local
+## Cómo abrir el programa
 
-1. Descarga el repositorio como ZIP.
-2. Extrae el contenido.
-3. Abre `index.html` con un navegador moderno.
+1. Abre la carpeta `TurnoFacil-HTML`.
+2. Haz doble clic en `index.html`.
+3. El programa se abrirá en el navegador y guardará los cambios automáticamente.
 
-No requiere instalación ni conexión a Internet. Los datos se guardan automáticamente en el navegador. La opción **Respaldar datos** permite descargar trabajadores, disponibilidades, reglas e historial en JSON para restaurarlos en otro computador con **Importar respaldo**.
+No requiere instalación ni conexión a Internet.
 
-## Estructura
+## Importante: no borrar ni cambiar nombres
 
-- `index.html`: estructura de la interfaz.
-- `css/styles.css`: estilos visuales e impresión.
-- `js/app.js`: trabajadores, disponibilidad, turnos, guardado y exportación.
-- `assets/`: recursos gráficos.
+Para que el programa funcione, deben permanecer juntos:
 
-## Funciones
+- `index.html`
+- La carpeta `css`
+- La carpeta `js`
+- La carpeta `assets`
 
-- Agregar trabajadores con nombre, RUT, horas semanales y disponibilidad diaria mediante listas de hora “Desde” y “Hasta”.
-- Registrar el cargo como **Crew** o **Crew-Master** y validar el dígito verificador del RUT al agregarlo.
-- Editar manualmente cada turno con dos listas, **Desde** y **Hasta**, que muestran alternativas cada 30 minutos dentro del horario configurado para el día.
-- Marcar un día sin turno mediante su botón **Libre** y sumar automáticamente las horas de todos los turnos en la columna **Asignadas**.
-- Abrir automáticamente la semana vigente según la fecha del sistema, navegar entre semanas y conservar el historial.
-- Cambiar el nombre de la tienda desde la sección **Tienda**; el valor queda guardado y se incluye en el Excel exportado.
-- Editar la apertura y el cierre de cada día para la semana seleccionada; por defecto son 09:00–23:00, con cierre a la 01:00 viernes y sábado.
-- Usar las horas contratadas como referencia para sugerir la duración inicial del turno, permitiendo trabajar cualquier día y distribuir la semana libremente.
-- Agregar una hora de colación no trabajada a todos los turnos y ofrecer alternativas de inicio cada 30 minutos.
-- Permitir duraciones manuales cada 30 minutos sin bloquear la asignación al alcanzar las horas contratadas.
-- Consultar la disponibilidad como información de referencia, sin bloquear ni modificar la asignación manual del administrador.
-- Permitir comenzar desde las 00:00 cuando la apertura del día esté configurada a esa hora.
-- Elegir manualmente entre opciones de turno válidas para cada día.
-- Copiar y pegar turnos respetando el cierre de cada día.
-- Comparar horas asignadas con horas contratadas: el total se muestra en rojo cuando supera el contrato, sin impedir continuar editando.
-- Usar **Guardar horario** para descargar una planilla `.xls` compacta y lista para imprimir: numeración, nombre y RUT separados, título “Horario crew” entre G:I, anchos controlados para N°, Horas y TR, turnos diarios centrados, días libres en negro y firma entre L:M.
-- Abrir una vista individual con cargo, contrato, horas de la semana y turno diario por trabajador.
-- Crear e importar respaldos completos en formato JSON.
-- Aprovechar todo el ancho del horario: en escritorio la barra lateral se oculta y reaparece al acercar el puntero al borde izquierdo.
-- Navegar desde una barra lateral por disponibilidades, horarios, vista individual, apertura/cierre, tienda y archivos.
+El único archivo que necesitas abrir es `index.html`.
 
-## Privacidad
+## Respaldo recomendado
 
-El repositorio no incluye nombres, RUT ni disponibilidades reales. Los dos trabajadores iniciales son ejemplos genéricos y pueden eliminarse o reemplazarse desde la interfaz.
+Usa **Respaldar** para guardar una copia de los trabajadores y horarios. Para recuperarla, usa **Importar** y selecciona el respaldo descargado.
+
+## Funciones principales
+
+- Agregar trabajadores, RUT, cargo y horas contratadas.
+- Registrar disponibilidades como información de referencia.
+- Crear y modificar turnos manualmente.
+- Cambiar la apertura y cierre de cada día.
+- Revisar las horas asignadas sin bloquear modificaciones.
+- Cambiar el nombre de la tienda.
+- Descargar el horario en Excel con **Guardar horario**.
+
+-Brian Bravo
