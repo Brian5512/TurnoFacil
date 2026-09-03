@@ -148,7 +148,9 @@ const excelExport = vm.runInContext(`(() => {
     hasRut: exported.content.includes('12.345.678-5'),
     hasSeparatedNameAndRut: exported.content.includes('<br><span class="rut-line">RUT: 12.345.678-5</span>'),
     hasReferenceHeaderLayout: exported.content.includes('<td colspan="2" class="logo-cell">') && exported.content.includes('<td colspan="3" class="title-cell">Horario crew</td>') && exported.content.includes('<td colspan="2" class="meta-spacer"></td>'),
-    hasReferenceColumnWidths: exported.content.includes('.roster .col-hours{width:51px}') && exported.content.includes('.roster .col-closing{width:42px}') && exported.content.includes('.roster .col-time-wide{width:89px}'),
+    hasRequestedColumnWidths: exported.content.includes('.roster .col-number{width:42px}') && exported.content.includes('.roster .col-hours{width:51px}') && exported.content.includes('.roster .col-closing{width:42px}'),
+    hasCompactTableWidth: exported.content.includes('.roster{width:100%') && !exported.content.includes('width:1057px'),
+    hasRequestedAlignment: exported.content.includes('.roster .hours-heading,.roster .closing-heading{text-align:left') && exported.content.includes('.roster .shift{background:#fff;font-size:10px;text-align:center'),
     hasSignatureLtoM: exported.content.includes('rowspan="2" colspan="2" class="signature"') && exported.content.includes('<td colspan="2" class="signature"></td>'),
     hasSingleCellShift: exported.content.includes('09:00 - 15:00'),
     hasWeekdays: exported.content.includes('LUNES') && exported.content.includes('DOMINGO'),
@@ -167,7 +169,9 @@ assert.strictEqual(excelExport.hasWorkerNumber, true);
 assert.strictEqual(excelExport.hasRut, true);
 assert.strictEqual(excelExport.hasSeparatedNameAndRut, true);
 assert.strictEqual(excelExport.hasReferenceHeaderLayout, true);
-assert.strictEqual(excelExport.hasReferenceColumnWidths, true);
+assert.strictEqual(excelExport.hasRequestedColumnWidths, true);
+assert.strictEqual(excelExport.hasCompactTableWidth, true);
+assert.strictEqual(excelExport.hasRequestedAlignment, true);
 assert.strictEqual(excelExport.hasSignatureLtoM, true);
 assert.strictEqual(excelExport.hasSingleCellShift, true);
 assert.strictEqual(excelExport.hasWeekdays, true);
