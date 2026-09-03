@@ -33,7 +33,7 @@ No requiere instalación ni conexión a Internet. Los datos se guardan automáti
 - Elegir manualmente entre opciones de turno válidas para cada día.
 - Copiar y pegar turnos respetando el cierre de cada día.
 - Comparar horas asignadas con horas contratadas: el total se muestra en rojo cuando supera el contrato, sin impedir continuar editando.
-- Descargar el horario para Excel y guardarlo como PDF mediante la impresión del navegador.
+- Usar **Guardar horario** para descargar una planilla `.xls` lista para abrir e imprimir en Excel, con tienda, título, fechas, columnas Desde/Hasta, días libres en negro y espacio para firma.
 - Abrir una vista individual con cargo, contrato, horas de la semana y turno diario por trabajador.
 - Crear e importar respaldos completos en formato JSON.
 - Navegar desde una barra lateral por semana, disponibilidades, horarios, trabajadores, vista individual, apertura/cierre y archivos.

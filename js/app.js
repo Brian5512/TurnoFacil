@@ -58,6 +58,12 @@ function dayDateLabel(index) {
   return `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}`;
 }
 
+function dayDateHeaderLabel(index) {
+  const months = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sept', 'oct', 'nov', 'dic'];
+  const date = dateForDay(index);
+  return `${String(date.getDate()).padStart(2, '0')}-${months[date.getMonth()]}`;
+}
+
 function normalizeEmployeeRole(value) {
   return String(value || '').trim().toLocaleLowerCase('es') === 'crew-master' ? 'Crew-Master' : 'Crew';
 }
@@ -697,12 +703,25 @@ function downloadBlob(content, type, filename) {
 }
 
 function exportExcel() {
-  const headers = ['Trabajador', 'RUT', 'Cargo', 'Horas contratadas', ...days, 'Horas asignadas'];
-  const rows = state.employees.map((employee) => [employee.name, employee.rut, normalizeEmployeeRole(employee.role), employee.hours, ...days.map((day) => state.schedule[employee.id]?.[day] || 'LIBRE'), assignedHours(employee.id)]);
-  const table = `<table><tr>${headers.map((cell) => `<th>${escapeHtml(cell)}</th>`).join('')}</tr>${rows.map((row) => `<tr>${row.map((cell) => `<td>${escapeHtml(cell)}</td>`).join('')}</tr>`).join('')}</table>`;
-  const html = `<!doctype html><html><head><meta charset="utf-8"><style>table{border-collapse:collapse;font-family:Aptos,"Segoe UI",sans-serif}th{background:#195c3b;color:#fff}th,td{border:1px solid #bbb;padding:6px}td{mso-number-format:"\\@"}</style></head><body><h2>TurnoFácil | ${escapeHtml(weekLabel())}</h2>${table}</body></html>`;
-  downloadBlob(`\ufeff${html}`, 'application/vnd.ms-excel;charset=utf-8', `horario-${state.week}.xls`);
-  toast('Archivo para Excel descargado.');
+  const storeName = 'Plaza Bio Bio';
+  const dayGroups = days.map((day, index) => `<th colspan="2" class="date">${dayDateHeaderLabel(index)}</th>`).join('');
+  const dayNames = days.map((day) => `<th colspan="2" class="day">${day.toUpperCase()}</th>`).join('');
+  const timeNames = days.map(() => '<th class="time-label">DESDE</th><th class="time-label">HASTA</th>').join('');
+  const rows = state.employees.map((employee, index) => {
+    const shifts = days.map((day) => {
+      const shift = state.schedule[employee.id]?.[day] || 'LIBRE';
+      if (shift === 'LIBRE') return '<td class="free" colspan="2"></td>';
+      const [start, end] = String(shift).split(' - ');
+      return `<td class="shift">${escapeHtml(start || '')}</td><td class="shift">${escapeHtml(end || '')}</td>`;
+    }).join('');
+    const hoursClass = Number(employee.hours) <= 20 ? 'hours hours-low' : 'hours';
+    const person = `${escapeHtml(employee.name)}${employee.rut ? ` (${escapeHtml(employee.rut)})` : ''}`;
+    return `<tr><td class="index">${index + 1}</td><td class="person">${person}</td><td class="${hoursClass}">${formatNumber(employee.hours)}</td><td class="closing">${employee.overnight ? 'SÍ' : 'NO'}</td>${shifts}<td class="signature"></td></tr>`;
+  }).join('');
+  const roster = `<table class="roster"><thead><tr><th rowspan="3" class="index"></th><th rowspan="3" class="person">NOMBRE</th><th rowspan="3">HORAS</th><th rowspan="3">TR</th>${dayGroups}<th rowspan="3" class="signature">FIRMA</th></tr><tr>${dayNames}</tr><tr>${timeNames}</tr></thead><tbody>${rows}</tbody></table>`;
+  const html = `<!doctype html><html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="utf-8"><!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet><x:Name>Horario</x:Name><x:WorksheetOptions><x:Selected/><x:PageSetup><x:Layout x:Orientation="Landscape"/><x:PageMargins x:Bottom="0.25" x:Left="0.25" x:Right="0.25" x:Top="0.25"/></x:PageSetup><x:FitToPage/></x:WorksheetOptions></x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]--><style>@page{size:landscape;margin:.25in}body{font-family:Arial,Aptos,"Segoe UI",sans-serif;color:#111;padding:12px}.document-head{width:100%;margin:0 0 18px;border-collapse:collapse}.document-head td{border:0;padding:6px}.store{width:28%;font-size:16px;font-weight:700;text-align:left}.brand{width:10%;text-align:center}.brand span{display:inline-block;padding:7px 8px;border:2px solid #f36b21;border-radius:18px;background:#fff4e8;color:#d72d22;font-size:13px;font-weight:900;line-height:.85}.title{width:42%;text-align:center}.title strong{display:block;font-size:17px;font-style:italic;text-decoration:underline}.title small{display:block;margin-top:5px;font-size:11px;font-weight:700}.roster{width:100%;border-collapse:collapse;font-size:9px;table-layout:fixed}.roster th,.roster td{height:25px;border:1px solid #111;padding:3px;text-align:center;mso-number-format:"\\@"}.roster th{background:#632b2e;color:#fff;font-weight:800}.roster .date{background:#7b3638;font-size:10px}.roster .day{font-size:9px}.roster .time-label{font-size:7px}.roster .index{width:22px;background:#fff;color:#111}.roster .person{width:230px;text-align:left;font-size:10px;font-weight:700}.roster .hours{width:38px;background:#d9f1d2;color:#176b2c;font-size:11px}.roster .hours-low{background:#ffd6d6;color:#b51224}.roster .closing{width:34px;background:#ffd6d6;color:#a90f1f}.roster .shift{background:#fff;font-size:10px}.roster .free{background:#000}.roster .signature{width:110px;background:#fff;color:#111}</style></head><body><table class="document-head"><tr><td class="store">Tienda: ${storeName}</td><td class="brand"><span>BURGER<br>KING</span></td><td class="title"><strong>Horario de trabajo Crew</strong><small>Semana del ${escapeHtml(weekLabel())}</small></td><td class="brand"><span>BURGER<br>KING</span></td></tr></table>${roster}</body></html>`;
+  downloadBlob(`\ufeff${html}`, 'application/vnd.ms-excel;charset=utf-8', `horario-plaza-bio-bio-${state.week}.xls`);
+  toast('Horario guardado en Excel y listo para imprimir.');
 }
 
 function exportBackup() {

@@ -115,12 +115,41 @@ assert.strictEqual(appSource.includes('copyPreviousWeek'), false);
 assert.strictEqual(indexSource.includes('id="metrics"'), false);
 assert.strictEqual(indexSource.includes('id="copy-previous"'), false);
 assert.strictEqual(indexSource.includes('Planificación semanal'), true);
+assert.strictEqual(indexSource.includes('Guardar horario'), true);
+assert.strictEqual(appSource.includes('Horario de trabajo Crew'), true);
+assert.strictEqual(appSource.includes('Tienda: ${storeName}'), true);
+assert.strictEqual(appSource.includes('class="free" colspan="2"'), true);
+assert.strictEqual(appSource.includes('class="signature"'), true);
 assert.strictEqual(indexSource.includes('id="open-business-hours"'), true);
 assert.strictEqual(indexSource.includes('id="business-hours-dialog"'), true);
 assert.strictEqual(cssSource.includes('th.day.today'), false);
 assert.strictEqual(appSource.includes('<span>Historial</span>'), false);
 assert.strictEqual(appSource.includes('employeeHistoryStats'), false);
 assert.strictEqual(indexSource.toLowerCase().includes('historial'), false);
+
+const excelExport = vm.runInContext(`(() => {
+  let exported = {};
+  downloadBlob = (content, type, filename) => { exported = { content, type, filename }; };
+  toast = () => {};
+  exportExcel();
+  return {
+    filename: exported.filename,
+    type: exported.type,
+    hasStore: exported.content.includes('Tienda: Plaza Bio Bio'),
+    hasTitle: exported.content.includes('Horario de trabajo Crew'),
+    hasWeekdays: exported.content.includes('LUNES') && exported.content.includes('DOMINGO'),
+    hasSignature: exported.content.includes('FIRMA'),
+    hasBlackFreeCells: exported.content.includes('class="free" colspan="2"') && exported.content.includes('.roster .free{background:#000}')
+  };
+})()`, context);
+assert.ok(excelExport.filename.startsWith('horario-plaza-bio-bio-'));
+assert.ok(excelExport.filename.endsWith('.xls'));
+assert.strictEqual(excelExport.type, 'application/vnd.ms-excel;charset=utf-8');
+assert.strictEqual(excelExport.hasStore, true);
+assert.strictEqual(excelExport.hasTitle, true);
+assert.strictEqual(excelExport.hasWeekdays, true);
+assert.strictEqual(excelExport.hasSignature, true);
+assert.strictEqual(excelExport.hasBlackFreeCells, true);
 
 const flexibleDays = vm.runInContext(`(() => {
   const employee30 = { ...state.employees[0], id: 20, hours: 30, availability: complete() };

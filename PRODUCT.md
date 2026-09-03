@@ -34,6 +34,7 @@ La persona encargada de organizar los turnos de un equipo en Chile. Trabaja prin
 - Todos los encabezados de día comparten el mismo tratamiento visual.
 - La navegación principal vive en una barra lateral de escritorio; Horarios es la sección operativa principal.
 - La identidad visual usa la paleta cálida de Burger King sin alterar reglas, datos ni compatibilidad local.
+- Guardar horario genera una planilla `.xls` imprimible del local Plaza Bio Bio, con fechas, pares Desde/Hasta, días libres en negro y columna de firma.
 
 ## Restricciones de implementación
 
