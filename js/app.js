@@ -824,27 +824,6 @@ function saveStoreSettings(event) {
   toast('Nombre de la tienda actualizado.');
 }
 
-function openWeekNavigation() {
-  setSidebarOpen(false);
-  window.scrollTo({ top: 0, behavior: 'smooth' });
-  const weekInput = $('#week');
-  weekInput.focus({ preventScroll: true });
-  if (typeof weekInput.showPicker === 'function') {
-    try { weekInput.showPicker(); } catch (_) { /* El navegador mantiene el selector enfocado. */ }
-  }
-}
-
-function openWorkersSection() {
-  setSidebarOpen(false);
-  state.view = 'schedule';
-  render();
-  requestAnimationFrame(() => {
-    $('#schedule-table').scrollIntoView({ behavior: 'smooth', block: 'start' });
-    const firstWorker = $('.person-input');
-    if (firstWorker) firstWorker.focus({ preventScroll: true });
-  });
-}
-
 function setSidebarOpen(open) {
   document.body.classList.toggle('sidebar-open', Boolean(open));
   $('#sidebar-reveal')?.setAttribute('aria-expanded', String(Boolean(open)));
@@ -904,8 +883,6 @@ $('#next-week').addEventListener('click', () => changeWeek(addDaysToDate(state.w
 $('#current-week').addEventListener('click', () => changeWeek(getMonday()));
 $('#week').addEventListener('change', (event) => changeWeek(event.target.value));
 $('#open-add').addEventListener('click', openEmployeeDialog);
-$('#open-week-navigation').addEventListener('click', openWeekNavigation);
-$('#open-workers').addEventListener('click', openWorkersSection);
 $('#open-business-hours').addEventListener('click', openBusinessHoursDialog);
 $('#open-store-settings').addEventListener('click', openStoreSettings);
 $('#current-store-name').addEventListener('click', openStoreSettings);

@@ -37,9 +37,8 @@ No requiere instalación ni conexión a Internet. Los datos se guardan automáti
 - Usar **Guardar horario** para descargar una planilla `.xls` compacta y lista para imprimir: numeración, nombre y RUT separados, título “Horario crew” entre G:I, anchos controlados para N°, Horas y TR, turnos diarios centrados, días libres en negro y firma entre L:M.
 - Abrir una vista individual con cargo, contrato, horas de la semana y turno diario por trabajador.
 - Crear e importar respaldos completos en formato JSON.
-- Abrir el selector de semana y ubicar rápidamente la tabla de trabajadores desde sus accesos laterales.
 - Aprovechar todo el ancho del horario: en escritorio la barra lateral se oculta y reaparece al acercar el puntero al borde izquierdo.
-- Navegar desde una barra lateral por semana, disponibilidades, horarios, trabajadores, vista individual, apertura/cierre, tienda y archivos.
+- Navegar desde una barra lateral por disponibilidades, horarios, vista individual, apertura/cierre, tienda y archivos.
 
 ## Privacidad
 
