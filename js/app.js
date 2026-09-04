@@ -814,7 +814,7 @@ function buildExcelWorkbook() {
     row.getCell(2).value = {
       richText: [
         { font: { name: 'Arial', size: 9, bold: true }, text: employee.name },
-        { font: { name: 'Arial', size: 8 }, text: ` — RUT: ${employee.rut || 'Sin RUT'}` },
+        { font: { name: 'Arial', size: 8 }, text: ` — ${employee.rut || 'Sin RUT'}` },
       ],
     };
     row.getCell(3).value = Number(employee.hours) || 0;
@@ -875,7 +875,7 @@ function exportLegacyExcel() {
       return `<td class="shift">${escapeHtml(start || '')} - ${escapeHtml(end || '')}</td>`;
     }).join('');
     const hoursClass = Number(employee.hours) <= 20 ? 'hours hours-low' : 'hours';
-    return `<tr><td class="number">${index + 1}</td><td class="person">${escapeHtml(employee.name)} <span class="rut-line">— RUT: ${escapeHtml(employee.rut || 'Sin RUT')}</span></td><td class="${hoursClass}">${formatNumber(employee.hours)}</td><td class="closing">${employee.overnight ? 'SÍ' : 'NO'}</td>${shifts}<td colspan="2" class="signature"></td></tr>`;
+    return `<tr><td class="number">${index + 1}</td><td class="person">${escapeHtml(employee.name)} <span class="rut-line">— ${escapeHtml(employee.rut || 'Sin RUT')}</span></td><td class="${hoursClass}">${formatNumber(employee.hours)}</td><td class="closing">${employee.overnight ? 'SÍ' : 'NO'}</td>${shifts}<td colspan="2" class="signature"></td></tr>`;
   }).join('');
   const dayColumns = days.map(() => '<col class="col-time">').join('');
   const roster = `<table class="roster"><colgroup><col class="col-number"><col class="col-person"><col class="col-hours"><col class="col-closing">${dayColumns}<col class="col-signature"><col class="col-signature"></colgroup><thead><tr class="sheet-meta"><td colspan="4" class="store">Tienda: ${escapeHtml(storeName)}</td><td colspan="2" class="meta-spacer"></td><td colspan="3" class="title-cell">Horario crew</td><td colspan="2" class="meta-spacer"></td><td colspan="2" class="week">Semana del ${escapeHtml(weekLabel())}</td></tr><tr><th rowspan="2" class="number">N°</th><th rowspan="2" class="person">NOMBRE Y RUT</th><th rowspan="2" class="hours-heading">HORAS</th><th rowspan="2" class="closing-heading">TR</th>${dayGroups}<th rowspan="2" colspan="2" class="signature">FIRMA</th></tr><tr>${dayNames}</tr></thead><tbody>${rows}</tbody></table>`;
