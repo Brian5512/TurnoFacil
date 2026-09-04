@@ -334,6 +334,31 @@ function assignedHours(employeeId) {
   return days.reduce((sum, day) => sum + shiftHours(state.schedule[employeeId]?.[day]), 0);
 }
 
+function monthlyFreeSundays(employeeId) {
+  const selectedSunday = dateForDay(6);
+  const year = selectedSunday.getFullYear();
+  const month = selectedSunday.getMonth();
+  const monthName = new Intl.DateTimeFormat('es-CL', { month: 'long' }).format(selectedSunday);
+  const sundays = [];
+  const lastDay = new Date(year, month + 1, 0).getDate();
+
+  for (let day = 1; day <= lastDay; day += 1) {
+    const date = new Date(year, month, day, 12);
+    if (date.getDay() === 0) sundays.push(date);
+  }
+
+  const free = sundays.filter((sunday) => {
+    const week = getMonday(sunday);
+    const weekSchedule = week === state.week
+      ? state.schedule
+      : state.history?.[week]?.schedule;
+    const shift = weekSchedule?.[employeeId]?.Domingo;
+    return !shift || shift === 'LIBRE';
+  }).length;
+
+  return { free, total: sundays.length, monthName };
+}
+
 function isValidRut(value) {
   const clean = String(value || '').replace(/[^0-9kK]/g, '').toUpperCase();
   if (!/^\d{7,8}[0-9K]$/.test(clean)) return false;
@@ -942,11 +967,12 @@ function renderIndividualReport() {
     return;
   }
   persistCurrentWeek();
+  const sundayStats = monthlyFreeSundays(employee.id);
   const rows = days.map((day, index) => {
     const shift = state.schedule?.[employee.id]?.[day] || 'LIBRE';
     return `<tr><td><strong>${day}</strong><br><small>${dayDateLabel(index)}</small></td><td>${shift === 'LIBRE' ? 'Libre' : escapeHtml(shiftDescription(shift))}</td><td>${formatNumber(shiftHours(shift))} h</td></tr>`;
   }).join('');
-  $('#individual-report-content').innerHTML = `<div class="individual-summary"><div><span>Cargo</span><strong>${escapeHtml(normalizeEmployeeRole(employee.role))}</strong></div><div><span>Contrato</span><strong>${formatNumber(employee.hours)} h</strong></div><div><span>Esta semana</span><strong>${formatNumber(assignedHours(employee.id))} h</strong></div></div><table class="individual-schedule"><thead><tr><th>Día</th><th>Turno</th><th>Trabajo</th></tr></thead><tbody>${rows}</tbody></table>`;
+  $('#individual-report-content').innerHTML = `<div class="individual-summary"><div><span>Cargo</span><strong>${escapeHtml(normalizeEmployeeRole(employee.role))}</strong></div><div><span>Contrato</span><strong>${formatNumber(employee.hours)} h</strong></div><div><span>Esta semana</span><strong>${formatNumber(assignedHours(employee.id))} h</strong></div><div><span>Domingos libres · ${escapeHtml(sundayStats.monthName)}</span><strong>${sundayStats.free} de ${sundayStats.total}</strong></div></div><table class="individual-schedule"><thead><tr><th>Día</th><th>Turno</th><th>Trabajo</th></tr></thead><tbody>${rows}</tbody></table>`;
 }
 
 function openIndividualReport() {
@@ -987,7 +1013,7 @@ function printIndividualReport() {
     toast('El navegador bloqueó la ventana de impresión.');
     return;
   }
-  popup.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Horario de ${escapeHtml(employee.name)}</title><style>body{font-family:Aptos,"Segoe UI",sans-serif;padding:28px;color:#172019}h1{margin-bottom:4px}p{color:#68736b}.individual-summary{display:grid;grid-template-columns:repeat(3,1fr);border:1px solid #ddd}.individual-summary div{padding:10px}.individual-summary span{display:block;font-size:9px;text-transform:uppercase;color:#68736b}.individual-summary strong{display:block;margin-top:4px}table{width:100%;border-collapse:collapse;margin-top:16px}th{background:#195c3b;color:white}th,td{border:1px solid #ccc;padding:8px;text-align:left}</style></head><body><h1>${escapeHtml(employee.name)}</h1><p>${escapeHtml(employee.rut)} | ${escapeHtml(normalizeEmployeeRole(employee.role))} | Semana ${escapeHtml(weekLabel())}</p>${$('#individual-report-content').innerHTML}</body></html>`);
+  popup.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Horario de ${escapeHtml(employee.name)}</title><style>body{font-family:Aptos,"Segoe UI",sans-serif;padding:28px;color:#172019}h1{margin-bottom:4px}p{color:#68736b}.individual-summary{display:grid;grid-template-columns:repeat(4,1fr);border:1px solid #ddd}.individual-summary div{padding:10px}.individual-summary span{display:block;font-size:9px;text-transform:uppercase;color:#68736b}.individual-summary strong{display:block;margin-top:4px}table{width:100%;border-collapse:collapse;margin-top:16px}th{background:#195c3b;color:white}th,td{border:1px solid #ccc;padding:8px;text-align:left}</style></head><body><h1>${escapeHtml(employee.name)}</h1><p>${escapeHtml(employee.rut)} | ${escapeHtml(normalizeEmployeeRole(employee.role))} | Semana ${escapeHtml(weekLabel())}</p>${$('#individual-report-content').innerHTML}</body></html>`);
   popup.document.close();
   popup.focus();
   setTimeout(() => popup.print(), 250);

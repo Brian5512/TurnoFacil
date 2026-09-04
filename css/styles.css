@@ -199,7 +199,7 @@ tbody tr:nth-child(even) td.person { background: #f6eee5; }
 .business-hours-note { margin: 11px 2px 0; color: var(--muted); font-size: 10px; }
 .report-worker-field { max-width: 360px; margin-bottom: 15px; }
 .individual-report-content { overflow: hidden; border: 1px solid var(--line); border-radius: 10px; }
-.individual-summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--line); }
+.individual-summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: var(--line); }
 .individual-summary div { padding: 11px; background: var(--bk-cream); }
 .individual-summary span { display: block; color: var(--muted); font-size: 9px; font-weight: 750; text-transform: uppercase; }
 .individual-summary strong { display: block; margin-top: 4px; color: var(--bk-brown); font-size: 14px; }
