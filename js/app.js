@@ -1064,6 +1064,13 @@ sidebarReveal.addEventListener('mouseenter', () => { if (desktopSidebar.matches)
 sidebarReveal.addEventListener('click', () => setSidebarOpen(!document.body.classList.contains('sidebar-open')));
 sidebar.addEventListener('mouseenter', () => { if (desktopSidebar.matches) setSidebarOpen(true); });
 sidebar.addEventListener('mouseleave', () => { if (desktopSidebar.matches) setSidebarOpen(false); });
+sidebar.addEventListener('click', (event) => {
+  if (!desktopSidebar.matches && event.target.closest('button')) setSidebarOpen(false);
+});
+document.addEventListener('pointerdown', (event) => {
+  if (desktopSidebar.matches || !document.body.classList.contains('sidebar-open')) return;
+  if (!sidebar.contains(event.target) && !sidebarReveal.contains(event.target)) setSidebarOpen(false);
+});
 document.addEventListener('pointermove', (event) => {
   if (!desktopSidebar.matches) return;
   if (event.clientX <= 16) setSidebarOpen(true);
