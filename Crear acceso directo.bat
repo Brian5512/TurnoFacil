@@ -3,7 +3,7 @@ setlocal
 title TurnoFacil - Crear acceso directo
 
 set "TURNOFACIL_APP=%~dp0index.html"
-set "TURNOFACIL_ICON=%~dp0assets\burger-king.ico"
+set "TURNOFACIL_ICON=%~dp0assets\burger-king-shortcut.ico"
 
 if not exist "%TURNOFACIL_APP%" (
   echo No se encontro index.html. Mantenga este archivo dentro de la carpeta de TurnoFacil.
