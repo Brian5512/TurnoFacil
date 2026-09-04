@@ -713,7 +713,157 @@ function downloadBlob(content, type, filename) {
   link.remove();
 }
 
-function exportExcel() {
+function buildExcelWorkbook() {
+  if (typeof ExcelJS === 'undefined') throw new Error('ExcelJS no está disponible');
+  persistCurrentWeek();
+  const storeName = normalizeStoreName(state.storeName);
+  const workbook = new ExcelJS.Workbook();
+  workbook.creator = 'TurnoFácil';
+  workbook.company = storeName;
+  workbook.subject = `Horario crew — ${weekLabel()}`;
+  workbook.created = new Date();
+
+  const worksheet = workbook.addWorksheet('Horario', {
+    views: [{ showGridLines: false }],
+    pageSetup: {
+      paperSize: 1,
+      orientation: 'landscape',
+      fitToPage: true,
+      fitToWidth: 1,
+      fitToHeight: 1,
+      horizontalCentered: true,
+      margins: { left: 0.2, right: 0.2, top: 0.2, bottom: 0.2, header: 0, footer: 0 },
+    },
+  });
+
+  worksheet.columns = [
+    { width: 5.3 },
+    { width: 28 },
+    { width: 6.57 },
+    { width: 6 },
+    ...days.map(() => ({ width: 11 })),
+    { width: 12 },
+    { width: 12 },
+  ];
+
+  const darkFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF632B2E' } };
+  const dateFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF7B3638' } };
+  const greenFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD9F1D2' } };
+  const redFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFD6D6' } };
+  const blackFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF000000' } };
+  const thinBorder = {
+    top: { style: 'thin', color: { argb: 'FF111111' } },
+    left: { style: 'thin', color: { argb: 'FF111111' } },
+    bottom: { style: 'thin', color: { argb: 'FF111111' } },
+    right: { style: 'thin', color: { argb: 'FF111111' } },
+  };
+
+  worksheet.mergeCells('A1:D1');
+  worksheet.mergeCells('G1:I1');
+  worksheet.mergeCells('L1:M1');
+  worksheet.getCell('A1').value = `Tienda: ${storeName}`;
+  worksheet.getCell('G1').value = 'Horario crew';
+  worksheet.getCell('L1').value = `Semana del ${weekLabel()}`;
+  worksheet.getRow(1).height = 46;
+  worksheet.getCell('A1').font = { name: 'Arial', size: 12, bold: true };
+  worksheet.getCell('A1').alignment = { vertical: 'middle', horizontal: 'left' };
+  worksheet.getCell('G1').font = { name: 'Arial', size: 16, bold: true, italic: true, underline: true };
+  worksheet.getCell('G1').alignment = { vertical: 'middle', horizontal: 'center' };
+  worksheet.getCell('L1').font = { name: 'Arial', size: 9, bold: true };
+  worksheet.getCell('L1').alignment = { vertical: 'middle', horizontal: 'right', wrapText: true };
+
+  worksheet.mergeCells('A2:A3');
+  worksheet.mergeCells('B2:B3');
+  worksheet.mergeCells('C2:C3');
+  worksheet.mergeCells('D2:D3');
+  worksheet.mergeCells('L2:M3');
+  worksheet.getCell('A2').value = 'N°';
+  worksheet.getCell('B2').value = 'NOMBRE Y RUT';
+  worksheet.getCell('C2').value = 'HORAS';
+  worksheet.getCell('D2').value = 'TR';
+  worksheet.getCell('L2').value = 'FIRMA';
+
+  days.forEach((day, index) => {
+    const column = 5 + index;
+    const dateCell = worksheet.getCell(2, column);
+    const dayCell = worksheet.getCell(3, column);
+    dateCell.value = dayDateLabel(index);
+    dayCell.value = day.toUpperCase();
+    dateCell.fill = dateFill;
+    dayCell.fill = darkFill;
+  });
+
+  for (let row = 2; row <= 3; row += 1) {
+    for (let column = 1; column <= 13; column += 1) {
+      const cell = worksheet.getCell(row, column);
+      if (!cell.fill?.fgColor) cell.fill = darkFill;
+      cell.font = { name: 'Arial', size: row === 2 ? 8 : 7, bold: true, color: { argb: 'FFFFFFFF' } };
+      cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+      cell.border = thinBorder;
+    }
+  }
+  worksheet.getCell('B2').alignment = { vertical: 'middle', horizontal: 'left' };
+  worksheet.getRow(2).height = 20;
+  worksheet.getRow(3).height = 20;
+
+  state.employees.forEach((employee, index) => {
+    const rowNumber = 4 + index;
+    const row = worksheet.getRow(rowNumber);
+    row.height = 24;
+    row.getCell(1).value = index + 1;
+    row.getCell(2).value = {
+      richText: [
+        { font: { name: 'Arial', size: 9, bold: true }, text: employee.name },
+        { font: { name: 'Arial', size: 8 }, text: ` — RUT: ${employee.rut || 'Sin RUT'}` },
+      ],
+    };
+    row.getCell(3).value = Number(employee.hours) || 0;
+    row.getCell(4).value = employee.overnight ? 'SÍ' : 'NO';
+    row.getCell(3).fill = Number(employee.hours) <= 20 ? redFill : greenFill;
+    row.getCell(3).font = { name: 'Arial', size: 9, color: { argb: Number(employee.hours) <= 20 ? 'FFB51224' : 'FF176B2C' } };
+    row.getCell(4).fill = redFill;
+    row.getCell(4).font = { name: 'Arial', size: 8, color: { argb: 'FFA90F1F' } };
+
+    days.forEach((day, dayIndex) => {
+      const shiftCell = row.getCell(5 + dayIndex);
+      const shift = state.schedule[employee.id]?.[day] || 'LIBRE';
+      if (shift === 'LIBRE') {
+        shiftCell.value = '';
+        shiftCell.fill = blackFill;
+      } else {
+        shiftCell.value = shift;
+        shiftCell.font = { name: 'Arial', size: 8 };
+      }
+    });
+
+    for (let column = 1; column <= 13; column += 1) {
+      const cell = row.getCell(column);
+      cell.border = thinBorder;
+      cell.alignment = { vertical: 'middle', horizontal: column === 2 ? 'left' : 'center', shrinkToFit: column === 2 };
+      if (!cell.font) cell.font = { name: 'Arial', size: 8 };
+    }
+    worksheet.mergeCells(`L${rowNumber}:M${rowNumber}`);
+  });
+
+  const lastRow = Math.max(4, 3 + state.employees.length);
+  worksheet.pageSetup.printArea = `A1:M${lastRow}`;
+  return workbook;
+}
+
+async function exportExcel() {
+  try {
+    const workbook = buildExcelWorkbook();
+    const content = await workbook.xlsx.writeBuffer();
+    const storeName = normalizeStoreName(state.storeName);
+    downloadBlob(content, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', `horario-${storeSlug(storeName)}-${state.week}.xlsx`);
+    toast('Horario guardado en Excel y listo para imprimir.');
+  } catch (error) {
+    console.error(error);
+    toast('No se pudo generar el archivo de Excel.');
+  }
+}
+
+function exportLegacyExcel() {
   const storeName = normalizeStoreName(state.storeName);
   const dayGroups = days.map((day, index) => `<th class="date">${dayDateHeaderLabel(index)}</th>`).join('');
   const dayNames = days.map((day) => `<th class="day">${day.toUpperCase()}</th>`).join('');
