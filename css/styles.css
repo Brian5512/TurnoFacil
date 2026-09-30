@@ -1,3 +1,4 @@
+/* Variables y reglas globales. */
 :root {
   color-scheme: light;
   font-family: 'Segoe UI Variable', Aptos, 'Segoe UI', sans-serif;
@@ -82,6 +83,7 @@ a:focus-visible {
 .app-main {
   min-width: 0;
 }
+/* Menú lateral. */
 .sidebar {
   position: fixed;
   inset: 0 auto 0 0;
@@ -279,6 +281,7 @@ body.sidebar-open .sidebar-reveal {
   transform: translateY(1px);
 }
 
+/* Encabezado y navegación semanal. */
 .topbar {
   position: sticky;
   top: 0;
@@ -453,6 +456,7 @@ h1 {
   padding: 0 13px;
 }
 
+/* Tabla de planificación. */
 .workspace {
   width: 100%;
   max-width: none;
@@ -928,6 +932,7 @@ tbody tr:nth-child(even) td.person {
   font-size: 12px;
 }
 
+/* Ventanas y formularios. */
 .employee-dialog {
   width: min(900px, calc(100vw - 32px));
   max-height: calc(100vh - 32px);
@@ -1026,6 +1031,7 @@ tbody tr:nth-child(even) td.person {
 .check-field input {
   accent-color: var(--bk-orange);
 }
+/* Formulario de disponibilidad. */
 .availability-form-head {
   display: flex;
   align-items: end;
@@ -1097,6 +1103,7 @@ tbody tr:nth-child(even) td.person {
   gap: 8px;
   margin-top: 20px;
 }
+/* Reportes y horarios del negocio. */
 .individual-dialog {
   width: min(760px, calc(100vw - 32px));
 }
@@ -1217,6 +1224,7 @@ tbody tr:nth-child(even) td.person {
   opacity: 1;
   transform: translateY(0);
 }
+/* Animación de los diálogos. */
 @keyframes dialog-in {
   from {
     opacity: 0;
@@ -1228,6 +1236,7 @@ tbody tr:nth-child(even) td.person {
   }
 }
 
+/* Ajuste para pantallas medianas. */
 @media screen and (max-width: 1280px) and (min-width: 901px) {
   .sidebar {
     width: 232px;
@@ -1281,6 +1290,7 @@ tbody tr:nth-child(even) td.person {
   }
 }
 
+/* Diseño móvil. */
 @media screen and (max-width: 900px) {
   .app-shell {
     display: block;
@@ -1493,6 +1503,7 @@ tbody tr:nth-child(even) td.person {
   }
 }
 
+/* Móviles pequeños. */
 @media screen and (max-width: 620px) {
   .sidebar {
     padding-bottom: 8px;
@@ -1567,12 +1578,14 @@ tbody tr:nth-child(even) td.person {
   }
 }
 
+/* Menú para dispositivos con puntero. */
 @media (hover: hover) and (min-width: 901px) {
   .sidebar:hover {
     transform: translateX(0);
     box-shadow: 14px 0 44px rgba(45, 19, 8, 0.24);
   }
 }
+/* Menú para pantallas táctiles. */
 @media (hover: none) {
   .icon-button:hover,
   .button:hover,
@@ -1582,6 +1595,7 @@ tbody tr:nth-child(even) td.person {
     transform: none;
   }
 }
+/* Respeta el movimiento reducido. */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -1591,6 +1605,7 @@ tbody tr:nth-child(even) td.person {
     animation-duration: 0.01ms !important;
   }
 }
+/* Formato de impresión. */
 @media print {
   .sidebar,
   .topbar .week-navigation,

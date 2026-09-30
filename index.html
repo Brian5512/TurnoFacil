@@ -12,7 +12,9 @@
     <link rel="stylesheet" href="css/styles.css?v=23" />
   </head>
   <body>
+    <!-- Estructura principal de la aplicación. -->
     <div class="app-shell">
+      <!-- Menú y acciones principales. -->
       <aside class="sidebar" aria-label="Navegación de TurnoFácil">
         <div class="sidebar-brand">
           <img src="assets/burger-king-logo.svg?v=2" alt="Burger King" />
@@ -103,6 +105,7 @@
       </button>
 
       <div class="app-main">
+        <!-- Semana activa y controles rápidos. -->
         <header class="topbar">
           <div class="week-heading">
             <button
@@ -131,6 +134,7 @@
           </div>
         </header>
 
+        <!-- Tabla central de planificación. -->
         <main class="workspace">
           <section class="panel" aria-label="Planificación del equipo">
             <div class="table-wrap"><table id="schedule-table"></table></div>
@@ -144,6 +148,7 @@
         </main>
       </div>
     </div>
+    <!-- Formularios y ventanas de la aplicación. -->
     <dialog id="employee-dialog" class="employee-dialog" aria-labelledby="employee-dialog-title">
       <form id="employee-form" method="dialog">
         <div class="dialog-head">
@@ -194,6 +199,7 @@
         </div>
       </form>
     </dialog>
+    <!-- Consulta individual de turnos. -->
     <dialog id="individual-dialog" class="employee-dialog individual-dialog" aria-labelledby="individual-dialog-title">
       <form method="dialog">
         <div class="dialog-head">
@@ -216,6 +222,7 @@
         </div>
       </form>
     </dialog>
+    <!-- Configuración de apertura y cierre. -->
     <dialog
       id="business-hours-dialog"
       class="employee-dialog business-hours-dialog"
@@ -239,6 +246,7 @@
         </div>
       </form>
     </dialog>
+    <!-- Configuración del nombre de la tienda. -->
     <dialog
       id="store-settings-dialog"
       class="employee-dialog store-settings-dialog"
@@ -270,6 +278,7 @@
         </div>
       </form>
     </dialog>
+    <!-- Avisos y librerías de la página. -->
     <div id="toast" role="status"></div>
     <script src="js/exceljs.min.js?v=1"></script>
     <script src="js/app.js?v=33"></script>

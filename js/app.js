@@ -2,9 +2,13 @@ const days = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', '
 const storageKey = 'turnofacil-html-v1';
 const appVersion = 6;
 const mealBreakHours = 1;
+// Repite un valor para cada día.
 const byDay = (value) => Object.fromEntries(days.map((day) => [day, value]));
+// Marca todos los días como completos.
 const complete = () => byDay('COMPLETA');
+// Marca todos los días como libres.
 const emptyDays = () => byDay('LIBRE');
+// Define los horarios iniciales.
 const defaultBusinessHours = () =>
   Object.fromEntries(
     days.map((day) => [
@@ -35,11 +39,15 @@ let saveTimer;
 const mobileExpandedEmployees = new Set();
 let mobileExpansionInitialized = false;
 
+// Busca un elemento.
 const $ = (selector) => document.querySelector(selector);
+// Busca varios elementos.
 const $$ = (selector) => [...document.querySelectorAll(selector)];
 
+// Copia datos sin compartir referencias.
 const clone = (value) => JSON.parse(JSON.stringify(value));
 
+// Obtiene el lunes de una fecha.
 function getMonday(source = new Date()) {
   const now = source;
   const date = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -48,38 +56,45 @@ function getMonday(source = new Date()) {
   return localDateValue(date);
 }
 
+// Normaliza una semana al lunes.
 function normalizeMonday(value) {
   const date = new Date(`${value}T12:00:00`);
   return Number.isNaN(date.getTime()) ? getMonday() : getMonday(date);
 }
 
+// Mueve una fecha varios días.
 function addDaysToDate(value, amount) {
   const date = new Date(`${value}T12:00:00`);
   date.setDate(date.getDate() + amount);
   return localDateValue(date);
 }
 
+// Convierte una fecha a texto local.
 function localDateValue(date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 }
 
+// Obtiene un día de la semana actual.
 function dateForDay(index) {
   const date = new Date(`${state.week}T12:00:00`);
   date.setDate(date.getDate() + index);
   return date;
 }
 
+// Muestra la fecha corta del día.
 function dayDateLabel(index) {
   const date = dateForDay(index);
   return `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}`;
 }
 
+// Muestra la fecha del encabezado.
 function dayDateHeaderLabel(index) {
   const months = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sept', 'oct', 'nov', 'dic'];
   const date = dateForDay(index);
   return `${String(date.getDate()).padStart(2, '0')}-${months[date.getMonth()]}`;
 }
 
+// Deja el cargo en un formato válido.
 function normalizeEmployeeRole(value) {
   return String(value || '')
     .trim()
@@ -88,6 +103,7 @@ function normalizeEmployeeRole(value) {
     : 'Crew';
 }
 
+// Limpia el nombre de la tienda.
 function normalizeStoreName(value) {
   const normalized = String(value || '')
     .trim()
@@ -95,6 +111,7 @@ function normalizeStoreName(value) {
   return normalized || 'Plaza Bio Bio';
 }
 
+// Crea un nombre seguro para archivos.
 function storeSlug(value) {
   return (
     normalizeStoreName(value)
@@ -106,6 +123,7 @@ function storeSlug(value) {
   );
 }
 
+// Valida los horarios de apertura.
 function normalizeBusinessHours(value) {
   const defaults = defaultBusinessHours();
   return Object.fromEntries(
@@ -118,6 +136,7 @@ function normalizeBusinessHours(value) {
   );
 }
 
+// Carga los datos guardados.
 function load() {
   try {
     const saved = JSON.parse(localStorage.getItem(storageKey));
@@ -161,6 +180,7 @@ function load() {
   state.view = ['availability', 'schedule'].includes(state.view) ? state.view : 'availability';
 }
 
+// Guarda la semana actual en el historial.
 function persistCurrentWeek() {
   state.history ??= {};
   state.history[state.week] = {
@@ -170,12 +190,14 @@ function persistCurrentWeek() {
   };
 }
 
+// Recupera una semana guardada.
 function restoreWeek(week) {
   const savedWeek = state.history?.[week];
   state.schedule = clone(savedWeek?.schedule || {});
   state.businessHours = normalizeBusinessHours(savedWeek?.businessHours);
 }
 
+// Guarda el estado y actualiza el aviso.
 function save() {
   persistCurrentWeek();
   localStorage.setItem(storageKey, JSON.stringify(state));
@@ -189,11 +211,13 @@ function save() {
   }, 1300);
 }
 
+// Convierte una hora en minutos.
 function parseTime(value) {
   const [hours, minutes] = String(value).split(':').map(Number);
   return hours * 60 + minutes;
 }
 
+// Convierte minutos en una hora.
 function formatTime(minutes) {
   const normalized = ((Math.round(minutes) % 1440) + 1440) % 1440;
   return `${String(Math.floor(normalized / 60)).padStart(2, '0')}:${String(normalized % 60).padStart(2, '0')}`;
@@ -202,14 +226,17 @@ function formatTime(minutes) {
 const timeValues = Array.from({ length: 48 }, (_, index) => formatTime(index * 30));
 const scheduleTimeValues = timeValues.filter((time) => parseTime(time) <= 23 * 60);
 
+// Obtiene los horarios de un día.
 function businessHoursFor(day, source = state.businessHours) {
   return source?.[day] || defaultBusinessHours()[day];
 }
 
+// Obtiene la hora de apertura.
 function openingMinutesFor(day, source = state.businessHours) {
   return parseTime(businessHoursFor(day, source).start);
 }
 
+// Obtiene la hora de cierre.
 function closingMinutes(day, source = state.businessHours) {
   const hours = businessHoursFor(day, source);
   const start = parseTime(hours.start);
@@ -218,19 +245,23 @@ function closingMinutes(day, source = state.businessHours) {
   return end;
 }
 
+// Devuelve el cierre como texto.
 function closingTime(day) {
   return formatTime(closingMinutes(day));
 }
 
+// Muestra el cierre del día.
 function closingDisplay(day) {
   return closingTime(day);
 }
 
+// Muestra el rango del negocio.
 function businessHoursDisplay(day) {
   const hours = businessHoursFor(day);
   return `${hours.start} a ${hours.end}`;
 }
 
+// Crea opciones de inicio.
 function startTimeOptionsHtml(day, selected = '') {
   const limit = Math.min(closingMinutes(day), 1440);
   const available = timeValues.filter((time) => parseTime(time) >= openingMinutesFor(day) && parseTime(time) < limit);
@@ -239,6 +270,7 @@ function startTimeOptionsHtml(day, selected = '') {
   return `${current}${available.map((time) => `<option value="${time}" ${time === selected ? 'selected' : ''}>${time}</option>`).join('')}`;
 }
 
+// Calcula el cierre de un rango.
 function endMinutesForRange(start, end) {
   let endMinutes = parseTime(end);
   const startMinutes = parseTime(start);
@@ -246,6 +278,7 @@ function endMinutesForRange(start, end) {
   return endMinutes;
 }
 
+// Crea opciones de término.
 function endTimeOptionsHtml(day, start, selected = '') {
   if (!start || start === 'COMPLETA' || start === 'X') return `<option value="">Máx. ${closingDisplay(day)}</option>`;
   const startMinutes = parseTime(start);
@@ -263,14 +296,17 @@ function endTimeOptionsHtml(day, start, selected = '') {
     : '<option value="">Sin horas disponibles</option>';
 }
 
+// Comprueba que no pase el cierre.
 function endWithinClosing(day, start, end) {
   return Boolean(start && end && start !== end && endMinutesForRange(start, end) <= closingMinutes(day));
 }
 
+// Propone una hora de término.
 function defaultEndForDay(day, start) {
   return formatTime(Math.min(parseTime(start) + 8 * 60, closingMinutes(day)));
 }
 
+// Crea opciones para los turnos.
 function scheduleTimeOptionsHtml(selected = '') {
   const blank = !selected ? '<option value="" selected>—</option>' : '';
   const current =
@@ -280,6 +316,7 @@ function scheduleTimeOptionsHtml(selected = '') {
   return `${blank}${current}${scheduleTimeValues.map((time) => `<option value="${time}" ${time === selected ? 'selected' : ''}>${time}</option>`).join('')}`;
 }
 
+// Lee un rango de horas.
 function parseWindow(value) {
   const match = String(value).match(/(\d{1,2}:\d{2})\s*-\s*(\d{1,2}:\d{2})/);
   if (!match) return null;
@@ -289,6 +326,7 @@ function parseWindow(value) {
   return { start, end, capacity: (end - start) / 60 };
 }
 
+// Separa una disponibilidad en partes.
 function availabilityParts(value) {
   const normalized = String(value || '')
     .trim()
@@ -300,16 +338,19 @@ function availabilityParts(value) {
   return { mode: 'range', start: formatTime(window.start), end: formatTime(window.end) };
 }
 
+// Calcula las horas trabajadas.
 function shiftHours(value) {
   if (!value || value === 'LIBRE') return 0;
   const elapsed = parseWindow(value)?.capacity ?? 0;
   return Math.max(0, elapsed - mealBreakHours);
 }
 
+// Construye un turno.
 function makeShift(start, workedHours) {
   return `${formatTime(start)} - ${formatTime(start + (workedHours + mealBreakHours) * 60)}`;
 }
 
+// Describe un turno para la interfaz.
 function shiftDescription(value, note = '') {
   const window = parseWindow(value);
   if (!window) return value;
@@ -317,6 +358,7 @@ function shiftDescription(value, note = '') {
   return `${formatTime(window.start)} a ${formatTime(window.end)} | ${formatNumber(shiftHours(value))} h trabajo + 1 h colación${suffix}`;
 }
 
+// Sugiere la duración del turno.
 function suggestedShiftHours(employee) {
   const weeklyHours = Number(employee.hours || 0);
   if (weeklyHours === 30) return 6;
@@ -325,12 +367,14 @@ function suggestedShiftHours(employee) {
   return Math.min(8, weeklyHours || 8);
 }
 
+// Define el rango disponible del turno.
 function scheduleWindow(employee, day) {
   const end = employee.overnight ? closingMinutes(day) : Math.min(closingMinutes(day), 1440);
   const start = openingMinutesFor(day);
   return { start, end, capacity: Math.max(0, (end - start) / 60), ranged: false };
 }
 
+// Genera los turnos posibles.
 function shiftOptions(employee, day, extraDurations = []) {
   const options = [{ value: 'LIBRE', hours: 0, label: 'Libre' }];
   const window = scheduleWindow(employee, day);
@@ -367,6 +411,7 @@ function shiftOptions(employee, day, extraDurations = []) {
   return [...options, ...collected.values()];
 }
 
+// Forma el título de la semana.
 function weekLabel() {
   const start = new Date(`${state.week}T12:00:00`);
   const end = new Date(start);
@@ -375,10 +420,12 @@ function weekLabel() {
   return `${formatter.format(start)} al ${formatter.format(end)}`;
 }
 
+// Suma las horas asignadas.
 function assignedHours(employeeId) {
   return days.reduce((sum, day) => sum + shiftHours(state.schedule[employeeId]?.[day]), 0);
 }
 
+// Cuenta los domingos libres del mes.
 function monthlyFreeSundays(employeeId) {
   const selectedSunday = dateForDay(6);
   const year = selectedSunday.getFullYear();
@@ -402,6 +449,7 @@ function monthlyFreeSundays(employeeId) {
   return { free, total: sundays.length, monthName };
 }
 
+// Valida un RUT chileno.
 function isValidRut(value) {
   const clean = String(value || '')
     .replace(/[^0-9kK]/g, '')
@@ -419,6 +467,7 @@ function isValidRut(value) {
   return verifier === clean.slice(-1);
 }
 
+// Conecta los eventos de la tabla.
 function bindTableEvents(table) {
   const bindings = [
     ['[data-action="business-hours"]', 'click', openBusinessHoursDialog],
@@ -440,6 +489,7 @@ function bindTableEvents(table) {
   });
 }
 
+// Dibuja la tabla principal.
 function renderTable() {
   const table = $('#schedule-table');
   table.className = '';
@@ -450,6 +500,7 @@ function renderTable() {
   bindTableEvents(table);
 }
 
+// Obtiene las iniciales del trabajador.
 function employeeInitials(name) {
   return (
     String(name || 'T')
@@ -462,6 +513,7 @@ function employeeInitials(name) {
   );
 }
 
+// Dibuja una fila de trabajador.
 function rowHtml(employee, index) {
   const assigned = assignedHours(employee.id);
   const mobileExpanded = mobileExpandedEmployees.has(employee.id);
@@ -490,6 +542,7 @@ function rowHtml(employee, index) {
   return `<tr class="${mobileExpanded ? 'mobile-expanded' : ''}"><td class="person" data-label="Trabajador"><span class="person-avatar" aria-hidden="true">${escapeHtml(employeeInitials(employee.name))}</span><div class="person-fields"><input class="person-input" data-id="${employee.id}" data-field="name" value="${escapeHtml(employee.name)}" aria-label="Nombre del trabajador" /><input class="person-input rut" data-id="${employee.id}" data-field="rut" value="${escapeHtml(employee.rut)}" placeholder="RUT" aria-label="RUT de ${escapeHtml(employee.name)}" /><select class="person-input role" data-id="${employee.id}" data-field="role" aria-label="Cargo de ${escapeHtml(employee.name)}"><option value="Crew" ${employee.role === 'Crew' ? 'selected' : ''}>Crew</option><option value="Crew-Master" ${employee.role === 'Crew-Master' ? 'selected' : ''}>Crew-Master</option></select></div><button type="button" class="mobile-worker-toggle" data-id="${employee.id}" data-action="toggle-mobile-worker" aria-expanded="${mobileExpanded}">${mobileExpanded ? 'Ocultar semana' : 'Ver semana'}</button></td><td class="hours-cell" data-label="${state.view === 'schedule' ? 'Asignadas' : 'Horas'}">${hoursCell}</td>${dayCells}<td class="overnight-cell" data-label="Cierre hasta 01:00"><button class="toggle ${employee.overnight ? 'on' : ''}" data-id="${employee.id}" data-action="overnight" aria-label="${escapeHtml(employee.name)}: puede tener cierre hasta la 01:00, ${employee.overnight ? 'sí' : 'no'}">${employee.overnight ? 'SÍ' : 'NO'}</button></td><td class="remove-cell" data-label="Eliminar"><button class="delete" title="Eliminar trabajador" aria-label="Eliminar a ${escapeHtml(employee.name)}" data-id="${employee.id}" data-action="delete"></button></td></tr>`;
 }
 
+// Expande o contrae la semana.
 function toggleMobileWorker(event) {
   const id = Number(event.currentTarget.dataset.id);
   const expanded = mobileExpandedEmployees.has(id);
@@ -501,6 +554,7 @@ function toggleMobileWorker(event) {
   event.currentTarget.textContent = expanded ? 'Ver semana' : 'Ocultar semana';
 }
 
+// Dibuja el formulario de disponibilidad.
 function renderAvailabilityForm() {
   $('#availability-form').innerHTML = days
     .map((day) => {
@@ -529,12 +583,14 @@ function renderAvailabilityForm() {
   updateAvailabilityFormPattern();
 }
 
+// Crea opciones para apertura.
 function businessTimeOptionsHtml(selected) {
   return timeValues
     .map((time) => `<option value="${time}" ${time === selected ? 'selected' : ''}>${time}</option>`)
     .join('');
 }
 
+// Dibuja los horarios del negocio.
 function renderBusinessHoursFields() {
   $('#business-hours-fields').innerHTML = days
     .map((day) => {
@@ -544,6 +600,7 @@ function renderBusinessHoursFields() {
     .join('');
 }
 
+// Abre el diálogo de horarios.
 function openBusinessHoursDialog(event) {
   renderBusinessHoursFields();
   const dialog = $('#business-hours-dialog');
@@ -555,6 +612,7 @@ function openBusinessHoursDialog(event) {
   setTimeout(() => target?.focus(), 0);
 }
 
+// Guarda los horarios del negocio.
 function saveBusinessHours(event) {
   event.preventDefault();
   const next = {};
@@ -577,6 +635,7 @@ function saveBusinessHours(event) {
   toast('Horarios de apertura y cierre actualizados.');
 }
 
+// Actualiza el patrón de horas.
 function updateAvailabilityFormPattern() {
   const note = $('#availability-pattern-note');
   note.textContent = 'Información de referencia: no limita la asignación manual de turnos.';
@@ -587,6 +646,7 @@ function updateAvailabilityFormPattern() {
   });
 }
 
+// Abre el formulario de trabajador.
 function openEmployeeDialog() {
   $('#employee-form').reset();
   $('#employee-hours').value = 30;
@@ -596,6 +656,7 @@ function openEmployeeDialog() {
   setTimeout(() => $('#employee-name').focus(), 0);
 }
 
+// Agrega un trabajador nuevo.
 function addEmployeeFromForm(event) {
   event.preventDefault();
   const rut = formatRut($('#employee-rut').value);
@@ -637,6 +698,7 @@ function addEmployeeFromForm(event) {
   toast('Trabajador agregado correctamente.');
 }
 
+// Formatea un RUT para mostrarlo.
 function formatRut(value) {
   const clean = String(value)
     .replace(/[^0-9kK]/g, '')
@@ -648,6 +710,7 @@ function formatRut(value) {
   return `${grouped}-${verifier}`;
 }
 
+// Guarda cambios de los datos básicos.
 function onCellChange(event) {
   const employee = state.employees.find((item) => item.id === Number(event.target.dataset.id));
   if (!employee) return;
@@ -659,6 +722,7 @@ function onCellChange(event) {
   render();
 }
 
+// Cambia el inicio de disponibilidad.
 function onAvailabilityStartChange(event) {
   const employee = state.employees.find((item) => item.id === Number(event.target.dataset.id));
   if (!employee) return;
@@ -678,6 +742,7 @@ function onAvailabilityStartChange(event) {
   render();
 }
 
+// Cambia el término de disponibilidad.
 function onAvailabilityEndChange(event) {
   const employee = state.employees.find((item) => item.id === Number(event.target.dataset.id));
   if (!employee || !event.target.value) return;
@@ -693,12 +758,14 @@ function onAvailabilityEndChange(event) {
   render();
 }
 
+// Filtra turnos para una hora.
 function validShiftOptionsForStart(employee, day, start) {
   return shiftOptions(employee, day).filter(
     (option) => option.value !== 'LIBRE' && formatTime(parseWindow(option.value).start) === start,
   );
 }
 
+// Cambia el inicio de un turno.
 function onShiftStartChange(event) {
   const id = Number(event.target.dataset.id);
   const day = event.target.dataset.day;
@@ -720,6 +787,7 @@ function onShiftStartChange(event) {
   render();
 }
 
+// Marca un día como libre.
 function setFreeDay(event) {
   const id = Number(event.currentTarget.dataset.id);
   const day = event.currentTarget.dataset.day;
@@ -730,6 +798,7 @@ function setFreeDay(event) {
   render();
 }
 
+// Cambia el término de un turno.
 function onShiftEndChange(event) {
   const id = Number(event.target.dataset.id);
   const day = event.target.dataset.day;
@@ -749,6 +818,7 @@ function onShiftEndChange(event) {
   render();
 }
 
+// Explica por qué un turno no sirve.
 function assignmentValidationMessage(employee, day, value) {
   if (!value || value === 'LIBRE') return '';
   if (!shiftOptions(employee, day, [shiftHours(value)]).some((option) => option.value === value))
@@ -756,6 +826,7 @@ function assignmentValidationMessage(employee, day, value) {
   return '';
 }
 
+// Copia un turno.
 function copyShift(event) {
   const id = Number(event.currentTarget.dataset.id);
   const day = event.currentTarget.dataset.day;
@@ -766,6 +837,7 @@ function copyShift(event) {
   toast(`Turno ${value} copiado.`);
 }
 
+// Pega un turno copiado.
 function pasteShift(event) {
   const id = Number(event.currentTarget.dataset.id);
   const day = event.currentTarget.dataset.day;
@@ -785,6 +857,7 @@ function pasteShift(event) {
   toast('Turno pegado correctamente.');
 }
 
+// Activa o desactiva el cierre nocturno.
 function toggleOvernight(event) {
   const employee = state.employees.find((item) => item.id === Number(event.currentTarget.dataset.id));
   if (!employee) return;
@@ -793,6 +866,7 @@ function toggleOvernight(event) {
   render();
 }
 
+// Elimina un trabajador y sus datos.
 function deleteEmployee(event) {
   const id = Number(event.currentTarget.dataset.id);
   if (!window.confirm('¿Eliminar este trabajador? Sus turnos guardados también se eliminarán.')) return;
@@ -805,6 +879,7 @@ function deleteEmployee(event) {
   render();
 }
 
+// Cambia la semana visible.
 function changeWeek(week) {
   persistCurrentWeek();
   state.week = normalizeMonday(week);
@@ -814,6 +889,7 @@ function changeWeek(week) {
   render();
 }
 
+// Descarga un archivo en el navegador.
 function downloadBlob(content, type, filename) {
   const blob = new Blob([content], { type });
   const link = document.createElement('a');
@@ -825,6 +901,7 @@ function downloadBlob(content, type, filename) {
   link.remove();
 }
 
+// Prepara el archivo Excel.
 function buildExcelWorkbook() {
   if (typeof ExcelJS === 'undefined') throw new Error('ExcelJS no está disponible');
   persistCurrentWeek();
@@ -966,6 +1043,7 @@ function buildExcelWorkbook() {
   return workbook;
 }
 
+// Exporta el horario a Excel.
 async function exportExcel() {
   try {
     const workbook = buildExcelWorkbook();
@@ -983,6 +1061,7 @@ async function exportExcel() {
   }
 }
 
+// Mantiene la exportación antigua.
 function exportLegacyExcel() {
   const storeName = normalizeStoreName(state.storeName);
   const dayGroups = days.map((day, index) => `<th class="date">${dayDateHeaderLabel(index)}</th>`).join('');
@@ -1012,6 +1091,7 @@ function exportLegacyExcel() {
   toast('Horario guardado en Excel y listo para imprimir.');
 }
 
+// Descarga un respaldo.
 function exportBackup() {
   persistCurrentWeek();
   const backup = { application: 'TurnoFácil', version: appVersion, exportedAt: new Date().toISOString(), data: state };
@@ -1023,6 +1103,7 @@ function exportBackup() {
   toast('Respaldo completo descargado.');
 }
 
+// Carga un respaldo.
 async function importBackup(event) {
   const file = event.target.files?.[0];
   event.target.value = '';
@@ -1072,6 +1153,7 @@ async function importBackup(event) {
   }
 }
 
+// Dibuja el informe individual.
 function renderIndividualReport() {
   const id = Number($('#individual-employee').value);
   const employee = state.employees.find((item) => item.id === id);
@@ -1091,6 +1173,7 @@ function renderIndividualReport() {
     `<div class="individual-summary"><div><span>Cargo</span><strong>${escapeHtml(normalizeEmployeeRole(employee.role))}</strong></div><div><span>Contrato</span><strong>${formatNumber(employee.hours)} h</strong></div><div><span>Esta semana</span><strong>${formatNumber(assignedHours(employee.id))} h</strong></div><div><span>Domingos libres · ${escapeHtml(sundayStats.monthName)}</span><strong>${sundayStats.free} de ${sundayStats.total}</strong></div></div><table class="individual-schedule"><thead><tr><th>Día</th><th>Turno</th><th>Trabajo</th></tr></thead><tbody>${rows}</tbody></table>`;
 }
 
+// Abre el informe individual.
 function openIndividualReport() {
   if (!state.employees.length) {
     toast('Agrega un trabajador antes de abrir la vista individual.');
@@ -1106,12 +1189,14 @@ function openIndividualReport() {
   $('#individual-dialog').showModal();
 }
 
+// Abre la configuración de tienda.
 function openStoreSettings() {
   $('#store-name').value = normalizeStoreName(state.storeName);
   $('#store-settings-dialog').showModal();
   requestAnimationFrame(() => $('#store-name').select());
 }
 
+// Guarda el nombre de la tienda.
 function saveStoreSettings(event) {
   event.preventDefault();
   state.storeName = normalizeStoreName($('#store-name').value);
@@ -1121,11 +1206,13 @@ function saveStoreSettings(event) {
   toast('Nombre de la tienda actualizado.');
 }
 
+// Muestra u oculta la barra lateral.
 function setSidebarOpen(open) {
   document.body.classList.toggle('sidebar-open', Boolean(open));
   $('#sidebar-reveal')?.setAttribute('aria-expanded', String(Boolean(open)));
 }
 
+// Imprime el informe individual.
 function printIndividualReport() {
   const employee = state.employees.find((item) => item.id === Number($('#individual-employee').value));
   if (!employee) return;
@@ -1142,6 +1229,7 @@ function printIndividualReport() {
   setTimeout(() => popup.print(), 250);
 }
 
+// Muestra un aviso breve.
 function toast(message) {
   const element = $('#toast');
   element.textContent = message;
@@ -1149,10 +1237,12 @@ function toast(message) {
   setTimeout(() => element.classList.remove('show'), 2500);
 }
 
+// Formatea un número de horas.
 function formatNumber(value) {
   return Number.isInteger(Number(value)) ? String(Number(value)) : Number(value).toFixed(1);
 }
 
+// Protege texto antes de insertarlo en HTML.
 function escapeHtml(value = '') {
   return String(value).replace(
     /[&<>"']/g,
@@ -1160,6 +1250,7 @@ function escapeHtml(value = '') {
   );
 }
 
+// Actualiza la vista completa.
 function render() {
   if (
     !mobileExpansionInitialized &&
@@ -1259,6 +1350,7 @@ load();
 render();
 
 if ('scrollRestoration' in window.history) window.history.scrollRestoration = 'manual';
+// Devuelve la página al inicio.
 const resetInitialScroll = () =>
   window.requestAnimationFrame(() => window.scrollTo({ top: 0, left: 0, behavior: 'auto' }));
 window.addEventListener('pageshow', resetInitialScroll);
